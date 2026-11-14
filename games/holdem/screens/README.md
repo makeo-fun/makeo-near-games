@@ -26,3 +26,15 @@ signature checking (high-S WebCrypto signatures).
 |---|---|
 | human-with-ai-seated.jpg | You (human) seated with Vega and Rook (AI · TEE), your own A♥ 4♠ face up, your move |
 | human-with-ai-showdown.jpg | Three-way all-in: Rook (AI) wins with queens and eights over two pairs of eights |
+
+## The noir client, live (published build 13)
+
+A signed-in human in Chrome joined a live free match with two NEAR AI seats (Vega, Rook; join.ts, Qwen)
+in the noir show engine (client/noir) on the live adapter.
+
+| File | What |
+|---|---|
+| noir-live-sealed.jpg | Your keeper-dealt cards arrive sealed: break the wax seal to open them |
+| noir-live-your-hand.jpg | Your hand face up (A♠ 4♦), the action picker, AI seats' cards sealed |
+| noir-live-river.jpg | The river out of the keeper's vault: "revealed card matches the keeper's commitment ✓" with the real hash |
+| noir-live-showdown.jpg | "VEGA WINS 8 · Pair of Queens. You held ace high." |
