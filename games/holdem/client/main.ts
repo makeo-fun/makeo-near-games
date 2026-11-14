@@ -15,6 +15,9 @@ import {
   type Move,
   type SitGoView,
 } from "../shared/holdem.js";
+// Rechecking AI signatures in the browser (EIP-191 recovery): audited, pinned versions.
+import { secp256k1 } from "https://esm.sh/@noble/curves@1.4.0/secp256k1";
+import { keccak_256 } from "https://esm.sh/@noble/hashes@1.4.0/sha3";
 
 type MatchView = { phase: string; game: SitGoView | null; [key: string]: unknown };
 
@@ -56,6 +59,10 @@ type HandRecord = {
 };
 const records = new Map<number, HandRecord>();
 let aiReceipts: any[] = [];
+/** The exact request and response bytes each receipt's hashes cover, by chat id. */
+let aiEvidence = new Map<string, { request_body: string; response_body: string }>();
+/** What this browser recomputed for each receipt, by chat id. */
+const aiChecks = new Map<string, { hashes: boolean; recovered: string | null }>();
 /** Autoplay: this seat plays itself with the scripted player (`window.makeoBot(true)`, or `#autoplay`). */
 let autoplay = /autoplay/.test(location.hash);
 let autoTimer: ReturnType<typeof setTimeout> | null = null;
@@ -824,6 +831,7 @@ async function drawReceipt() {
     handHTML.push(`<details class="hand" ${r === hands[0] ? "open" : ""}><summary><b>Hand ${r.id}</b><span class="chip">${esc(result)}</span><span class="minicards">${(h.board ?? []).map((c) => cardHTML(c)).join("")}</span></summary><div class="body">${rows.join("")}</div></details>`);
   }
   const allOk = checks > 0 && good === checks;
+  for (const r of aiReceipts) await checkReceipt(r);
   const g = game();
   const settle = g?.finished
     ? `<div class="hashbox"><span class="k">Winners</span><span class="val">${g.winners.map((w) => esc(w)).join("<br>")}</span><span class="k">Shares (chips)</span><span class="val">${g.shares.join(" · ")}</span><span class="k">Final state</span><span class="val">${esc(await sha256Hex(JSON.stringify(g.state ?? null)))} · SHA-256 of the published JSON</span></div>`
@@ -835,10 +843,20 @@ async function drawReceipt() {
       ${handHTML.join("") || `<div class="empty">Play a hand and its commitments appear here.</div>`}</div>
     <div class="panel check"><div class="ck-h"><div class="ck-n">2</div><div><div class="ck-t">Every AI decision came from attested private inference</div><div class="ck-d">AI players run on NEAR AI Cloud inside a TEE. Each decision's request and response are hashed and signed by the enclave's key; the runner checks the attestation (<code>verify/nearai.ts</code>) and publishes every receipt, with the AI's private reasoning, once the game ends.</div></div><div class="ck-ok ${aiReceipts.length ? "" : "wait"}">${aiReceipts.length ? `${aiReceipts.filter((r) => r.verified).length}/${aiReceipts.length} verified` : practice ? "practice CPUs are scripted" : "no receipts loaded"}</div></div>
       ${aiReceiptsHTML()}
-      <div class="dropzone"><label class="btn sm ghost">Load receipts file<input type="file" id="rfile" accept="application/json" hidden></label><span>or open this page with <code>?receipts=&lt;url&gt;</code></span></div></div>
+      <div class="dropzone"><button class="btn sm pip" id="demorcpt">Load a live AI run</button><label class="btn sm ghost">Load receipts file<input type="file" id="rfile" accept="application/json" hidden></label><span>or open this page with <code>?receipts=&lt;url&gt;</code></span></div></div>
     <div class="panel check"><div class="ck-h"><div class="ck-n">3</div><div><div class="ck-t">The result settles on NEAR</div><div class="ck-d">The keeper signs the game's final step. Once the game ends its full final state is public, with the winners and their chip shares; the NEAR pot contract checks it against the keeper's signed hash and pays the winners (<code>verify/near.ts</code>, <code>verify/keeper.ts</code>). The seed is published too, so anyone can replay every hand with these rules.</div></div></div>${settle}</div>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn ghost" id="rback2">${room ? "Back to the table" : "Back"}</button></div>`;
   $("#rback2").onclick = () => show(room ? "table" : "title");
+  const demo = document.getElementById("demorcpt");
+  if (demo)
+    demo.onclick = async () => {
+      try {
+        loadReceipts(await (await fetch("./demo-receipts.json")).json());
+        void drawReceipt();
+      } catch {
+        toast("Couldn't load the demo receipts");
+      }
+    };
   const file = document.getElementById("rfile") as HTMLInputElement | null;
   if (file)
     file.onchange = async () => {
@@ -856,6 +874,40 @@ async function drawReceipt() {
 function loadReceipts(json: any) {
   const list = Array.isArray(json) ? json : Array.isArray(json?.receipts) ? json.receipts : [];
   aiReceipts = list.filter((r: any) => r && typeof r === "object" && "seat" in r);
+  aiEvidence = new Map((Array.isArray(json?.evidence) ? json.evidence : []).map((e: any) => [String(e.chat_id), e]));
+  aiChecks.clear();
+}
+
+/** Rechecks a receipt here: the request and response hash to what was signed, and the EIP-191
+ * signature over `signed_text` recovers to the receipt's signing address (the model's TEE key). */
+async function checkReceipt(r: any) {
+  const id = String(r.chat_id ?? "");
+  if (aiChecks.has(id)) return aiChecks.get(id)!;
+  let hashes = false;
+  let recovered: string | null = null;
+  try {
+    const ev = aiEvidence.get(id);
+    if (ev) {
+      const req = (await sha256Hex(ev.request_body)).slice(2);
+      const res = (await sha256Hex(ev.response_body)).slice(2);
+      hashes = req === r.request_sha256 && res === r.response_sha256 && String(r.signed_text ?? "").endsWith(`${req}:${res}`);
+    }
+    if (r.signature && r.signed_text) {
+      const msg = new TextEncoder().encode(String(r.signed_text));
+      const prefix = new TextEncoder().encode(`\x19Ethereum Signed Message:\n${msg.length}`);
+      const digest = keccak_256(new Uint8Array([...prefix, ...msg]));
+      const sig = String(r.signature).replace(/^0x/, "");
+      const v = parseInt(sig.slice(128, 130), 16);
+      const pub = secp256k1.Signature.fromCompact(sig.slice(0, 128)).addRecoveryBit(v >= 27 ? v - 27 : v).recoverPublicKey(digest).toRawBytes(false);
+      const addr = keccak_256(pub.slice(1)).slice(-20);
+      recovered = "0x" + [...addr].map((b: number) => b.toString(16).padStart(2, "0")).join("");
+    }
+  } catch {
+    /* shown as not rechecked */
+  }
+  const out = { hashes, recovered };
+  aiChecks.set(id, out);
+  return out;
 }
 
 function aiReceiptsHTML() {
@@ -864,16 +916,21 @@ function aiReceiptsHTML() {
   for (const r of aiReceipts) bySeat.set(String(r.seat), [...(bySeat.get(String(r.seat)) ?? []), r]);
   return [...bySeat.entries()]
     .map(([seat, rs]) => {
-      const ok = rs.filter((r) => r.verified).length;
+      const ok = rs.filter((r) => {
+        const c = aiChecks.get(String(r.chat_id ?? ""));
+        return r.verified && c?.hashes && c.recovered?.toLowerCase() === String(r.signing_address).toLowerCase();
+      }).length;
       const moves = rs
         .map((r) => {
           const m = r.move && typeof r.move === "object" ? (r.move.move === "raise" ? `raise to ${r.move.to}` : r.move.move) : String(r.move);
-          const sig = r.signature ? `sig ${String(r.signature).slice(0, 10)}…${String(r.signature).slice(-6)} ${r.verified ? "✓" : "✗"}` : r.fallback ? `scripted: ${r.fallback}` : "unsigned";
+          const c = aiChecks.get(String(r.chat_id ?? ""));
+          const here = c && c.recovered && c.recovered.toLowerCase() === String(r.signing_address).toLowerCase() && c.hashes;
+          const sig = r.signature ? `sig ${String(r.signature).slice(0, 10)}…${String(r.signature).slice(-6)} ${here ? "✓ rechecked here" : r.verified ? "✓ runner" : "✗"}` : r.fallback ? `scripted: ${r.fallback}` : "unsigned";
           return `<div class="amv"><span>Hand ${esc(r.round)}</span><span>${esc(m)}${r.say ? ` · “${esc(r.say)}”` : ""}</span><span class="sig">${esc(sig)}</span>${r.reasoning ? `<div class="why">${esc(r.reasoning)}</div>` : ""}</div>`;
         })
         .join("");
       const first = rs[0];
-      return `<div class="aiseat"><div class="ah"><span class="av" style="--c:${colorOf(seat)}">AI</span><div><b>${esc(nameOf(seat, -1))}</b><div class="mono" style="font-size:11px;color:var(--dim)">${esc(first.model ?? "")} · signer ${esc(short(String(first.signing_address ?? "—")))}</div></div><span class="ck-ok">${ok}/${rs.length} verified</span></div>${moves}</div>`;
+      return `<div class="aiseat"><div class="ah"><span class="av" style="--c:${colorOf(seat)}">AI</span><div><b>${esc(first.name ?? nameOf(seat, -1))}</b><div class="mono" style="font-size:11px;color:var(--dim)">${esc(first.model ?? "")} · signer ${esc(short(String(first.signing_address ?? "—")))}</div></div><span class="ck-ok">${ok}/${rs.length} rechecked in your browser</span></div>${moves}</div>`;
     })
     .join("");
 }

@@ -110,6 +110,7 @@ export function prompt(view: SeatView, publicLog: HoldemEvent[], who: Persona): 
     personaPreamble(who, "No-Limit Texas Hold'em"),
     "Rules: standard No-Limit Hold'em. A raise names the TOTAL you put in on this street (raise to), not the amount added.",
     "You only know your own two cards and the public board. Never claim to know anyone else's cards.",
+    'Your "say" line must match the move you make (do not say "all in" unless your move is all in).',
     'The "move" field must be exactly one of the legal moves listed, copied as JSON, e.g. {"move":"call"} or {"move":"raise","to":12}.',
   ].join("\n");
   const user = [
