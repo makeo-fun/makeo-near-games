@@ -70,6 +70,10 @@ async function enter(open: () => Promise<MakeoRoom | null>) {
     next.onLobby(drawLobby);
     next.onPlayers(() => drawLobby(next.lobby));
     next.onStart(start);
+    // A room already under way may say it started before its first view lands: boot on that view.
+    next.onChange(() => {
+      if (!booted && next.phase === "playing") void start();
+    });
     next.onEnd((end) => {
       const g = next.view?.game as GameView | null | undefined;
       if (booted) {
