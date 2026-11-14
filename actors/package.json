@@ -3,11 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "bun test",
+    "test": "bun test && bun test ../verify",
     "demo": "bun run src/demo.ts"
   },
   "dependencies": {
     "@noble/curves": "2.0.1",
-    "@noble/hashes": "2.0.1"
+    "@noble/hashes": "2.0.1",
+    "@phala/dcap-qvl": "^0.7.1"
   }
 }
