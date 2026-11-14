@@ -72,6 +72,12 @@ async function enter(open: () => Promise<MakeoRoom | null>) {
     next.onStart(start);
     next.onEnd((end) => {
       const g = next.view?.game as GameView | null | undefined;
+      if (booted) {
+        // Played to the end: the show plays its ending and receipt; offer the way back.
+        addAgainButton();
+        if (next.kind === "paid") addPayoutButton();
+        return;
+      }
       if (!g || g.phase !== "end") {
         $("#front").hidden = false;
         step("main");
@@ -133,6 +139,7 @@ async function start() {
   const NW = ((window as any).NEARWOLF ??= {});
   NW.SEATS = toNearwolfView(g).seats;
   NW.LIVE = true;
+  NW.PRACTICE = room.kind === "practice";
   (window as any).NEARWOLF_PORTRAIT_BASE = "./noir/";
   (window as any).NEARWOLF_BOOT = { adapter: createMakeoAdapter(room, { contract: NEAR_POT.contract, onRefused: toast }) };
   $("#front").hidden = true;
@@ -143,6 +150,19 @@ async function start() {
   }
   const me = g.you != null ? g.seats[g.you] : null;
   if (me && g.role) $("#hud-me").innerHTML = `${room.kind === "practice" ? "practice · " : room.hidden ? "keeper-dealt · " : ""}<b>${esc(PERSONAS[me.persona]?.name)}</b> · ${esc(ROLES[g.role].name)}`;
+}
+
+function addAgainButton() {
+  const ctl = $("#ctl");
+  if (ctl.querySelector(".again")) return;
+  const b = document.createElement("button");
+  b.className = "again";
+  b.textContent = "Play again";
+  b.onclick = () => {
+    room?.leave();
+    location.href = location.pathname + (new URLSearchParams(location.search).get("revision") ? `?revision=${new URLSearchParams(location.search).get("revision")}` : "");
+  };
+  ctl.appendChild(b);
 }
 
 function addPayoutButton() {

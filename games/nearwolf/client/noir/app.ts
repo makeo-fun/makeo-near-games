@@ -377,13 +377,13 @@
       scene('reveal', 'WHO WAS REAL');
       const el = h('reveal', '<h2><small>Now you may know</small>WHO WAS <span class="red">REAL?</span></h2><div class="grid">' + SEATS.map((s) => {
         const ai = ev.kinds[s.id] === 'AI', role = ev.roles[s.id];
-        return '<div class="rv ' + (ai ? 'ai' : '') + '"><div class="f" style="background-image:url(\'' + P[s.id].url + '\')"><span>' + short(s.id) + '</span></div><div class="b"><div class="pp" style="background-image:url(\'' + P[s.id].url + '\')"></div>' + (ai ? '<u>NEAR AI · TEE <span class="ok">✓</span></u>' : ev.kinds[s.id] === 'HOUSE' ? '<u>played by the rules</u>' : '') + '<b>' + ev.kinds[s.id] + '</b><em class="' + (role === 'WOLF' ? 'w' : '') + '">' + role + '</em><span>' + short(s.id) + '</span></div></div>';
+        return '<div class="rv ' + (ai ? 'ai' : '') + '"><div class="f" style="background-image:url(\'' + P[s.id].url + '\')"><span>' + short(s.id) + '</span></div><div class="b"><div class="pp" style="background-image:url(\'' + P[s.id].url + '\')"></div>' + (ai ? '<u>NEAR AI · TEE <span class="ok">✓</span></u>' : ev.kinds[s.id] === 'HOUSE' ? '<u>played by the rules</u>' : ev.kinds[s.id] === 'CPU' ? '<u>practice bot</u>' : '') + '<b>' + ev.kinds[s.id] + '</b><em class="' + (role === 'WOLF' ? 'w' : '') + '">' + role + '</em><span>' + short(s.id) + '</span></div></div>';
       }).join('') + '</div><div class="foot"></div>');
       const rv = Array.from(el.querySelectorAll('.rv')), foot = el.querySelector('.foot'), nAI = SEATS.filter((s) => ev.kinds[s.id] === 'AI').length, rd = 1700 + N * 620 + 2600;
       add(T, T + rd, (p, t, lt) => {
         const vis = sat(lt / 500) * sat((rd - lt) / 450); el.style.opacity = vis;
         rv.forEach((d, i) => { const q = eio((lt - 1500 - i * 620) / 720), a = eo((lt - i * 70) / 600); d.style.opacity = a; d.style.transform = 'translateY(' + (1 - a) * 40 + 'px) rotateY(' + q * 180 + 'deg) scale(' + (1 + Math.sin(q * PI) * .12) + ')'; });
-        const fq = sat((lt - 1500 - N * 620) / 400); foot.style.opacity = fq; const nH = SEATS.filter((s) => ev.kinds[s.id] === 'HOUSE').length; foot.innerHTML = nAI + ' of ' + N + ' were AI' + (nAI ? ' · every one of their moves was signed inside a TEE <span class="ok">✓</span>' : '') + (nH ? ' · ' + nH + ' played by the house' : '');
+        const fq = sat((lt - 1500 - N * 620) / 400); foot.style.opacity = fq; const nH = SEATS.filter((s) => ev.kinds[s.id] === 'HOUSE').length; foot.innerHTML = nAI + ' of ' + N + ' were AI' + (nAI ? ' · every one of their moves was signed inside a TEE <span class="ok">✓</span>' : '') + (nH ? ' · ' + nH + ' played by the house' : '') + (NW.PRACTICE ? ' · practice: the rest were CPU bots' : '');
         F.blur = Math.max(F.blur, 12 * vis); F.dim = Math.max(F.dim, .72 * vis);
       }, el);
       T += rd;
@@ -444,14 +444,14 @@
     const nr = ev.near || { winners: [] }, rcp = ev.receipts || [];
     const yes = '<span class="chk">✓</span>', esc = (x) => String(x == null ? '' : x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
     let s = '<h1>The <i>Receipt</i></h1><div class="sub">What this table can show, and what each line rests on.</div>' +
-      '<div class="kv"><span>result</span><span>' + ev.winner + ' wins · ' + (nr.winners || []).length + ' paid seats</span><span>rules</span><span>NEARWOLF · ' + N + ' seats · keeper-dealt · games/nearwolf/rules</span></div>';
-    s += '<h2>1 · Who sat where, and what they were</h2><div class="kv"><span>executor</span><span>Makeo keeper (hidden game): it dealt the roles from its secret and opened every sealed move; it publishes the secret and the moves now the game is over, so the deal replays.</span></div>' +
-      '<table><tr><th>seat</th><th>role dealt</th><th>was</th></tr>' + SEATS.map((x) => '<tr><td>' + esc(x.name) + '</td><td class="' + (ev.roles[x.id] === 'WOLF' ? 'w' : '') + '">' + ev.roles[x.id] + '</td><td>' + (ev.kinds[x.id] === 'HOUSE' ? 'HOUSE · played by the rules' : ev.kinds[x.id] + (ev.kinds[x.id] === 'AI' ? ' · ' + esc(ev.model) : '')) + '</td></tr>').join('') + '</table>';
+      '<div class="kv"><span>result</span><span>' + ev.winner + ' wins' + (NW.PRACTICE ? ' · practice, nothing at stake' : ' · ' + (nr.winners || []).length + ' winning entrants') + '</span><span>rules</span><span>NEARWOLF · ' + N + ' seats · keeper-dealt · games/nearwolf/rules</span></div>';
+    s += '<h2>1 · Who sat where, and what they were</h2><div class="kv"><span>executor</span><span>' + (NW.PRACTICE ? 'This browser (practice): the same rules, dealt with a local secret. Matches are dealt by the Makeo keeper.' : 'Makeo keeper (hidden game): it dealt the roles from its secret and opened every sealed move; it publishes the secret and the moves now the game is over, so the deal replays.') + '</span></div>' +
+      '<table><tr><th>seat</th><th>role dealt</th><th>was</th></tr>' + SEATS.map((x) => '<tr><td>' + esc(x.name) + '</td><td class="' + (ev.roles[x.id] === 'WOLF' ? 'w' : '') + '">' + ev.roles[x.id] + '</td><td>' + (ev.kinds[x.id] === 'CPU' ? 'CPU · practice bot' : ev.kinds[x.id] === 'HOUSE' ? 'HOUSE · played by the rules' : ev.kinds[x.id] + (ev.kinds[x.id] === 'AI' ? ' · ' + esc(ev.model) : '')) + '</td></tr>').join('') + '</table>';
     if (rcp.length) {
       s += '<h2>2 · AI moves, signed in a TEE</h2><table><tr><th>day</th><th>seat</th><th>move</th><th>signer</th><th></th></tr>' + rcp.map((r) => '<tr><td>' + r.round + '</td><td>' + short(r.seat) + '</td><td>' + esc(JSON.stringify(r.move)) + '</td><td>' + sh(String(r.signing_address || ''), 10) + '</td><td>' + (r.verified ? yes : 'not verified') + '</td></tr>').join('') + '</table>';
       s += '<h2>3 · Confessionals, unsealed</h2>';
       for (const seat in ev.confessionals) for (const r in ev.confessionals[seat]) s += '<div class="cf"><small>' + esc(SEATS[idx[seat]].name) + ' · ' + ev.roles[seat] + ' · round ' + r + '</small><q>' + esc(ev.confessionals[seat][r]) + '</q></div>';
-    } else s += '<h2>2 · AI moves</h2><div class="sub">No NEAR AI actors sat at this table. Empty seats were played by the house: the game rules themselves, inside the keeper, from each seat\'s own role and the public record.</div>';
+    } else s += '<h2>2 · AI moves</h2><div class="sub">' + (NW.PRACTICE ? 'Practice: the other seats were the page\'s CPU bots, each playing from its own view.' : 'No NEAR AI actors sat at this table. Empty seats were played by the house: the game rules themselves, inside the keeper, from each seat\'s own role and the public record.') + '</div>';
     s += '<h2>' + (rcp.length ? '4' : '3') + ' · On NEAR ' + esc(nr.network || 'testnet') + '</h2><div class="kv"><span>pot contract</span><span>' + (nr.contract ? esc(nr.contract) : 'not live for this build: free play') + '</span><span>winners</span><span>' + (nr.winners || []).map(short).join(', ').toLowerCase() + '</span></div>';
     return s;
   }

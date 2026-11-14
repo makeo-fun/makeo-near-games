@@ -33,7 +33,7 @@ export function createMakeoAdapter(room: MakeoRoom, options: { receipts?: () => 
     const g = (view as { game?: GameView | null } | null)?.game ?? null;
     if (!g) return;
     game = g;
-    const nv = toNearwolfView(g, { receipts: options.receipts?.(), contract: options.contract ?? null });
+    const nv = toNearwolfView(g, { receipts: options.receipts?.(), contract: options.contract ?? null, practice: room.kind === "practice" });
     const key = keyOf(g);
     // A picker left open when its phase moved on (the clock ran out): close it with no choice.
     if (pending && pendingKey !== key) closePicker(null);

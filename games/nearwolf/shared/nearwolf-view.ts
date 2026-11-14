@@ -31,7 +31,7 @@ function seatOf(v: GameView, id: unknown): number | null {
   return i >= 0 ? i : null;
 }
 
-export function toNearwolfView(v: GameView, extra: { receipts?: NwReceipt[]; network?: string; contract?: string | null } = {}): NearwolfView {
+export function toNearwolfView(v: GameView, extra: { receipts?: NwReceipt[]; network?: string; contract?: string | null; practice?: boolean } = {}): NearwolfView {
   const id = (i: number) => seatId(v, i);
   const me = v.you;
   const seats: NwSeat[] = v.seats.map((s) => {
@@ -97,13 +97,13 @@ export function toNearwolfView(v: GameView, extra: { receipts?: NwReceipt[]; net
     const receipts = extra.receipts ?? [];
     const byWallet = (w: string | null) => (w ? receipts.filter((x) => String(x.seat).toLowerCase() === w.toLowerCase()) : []);
     const roles: Record<string, UiRole | null> = {};
-    const kinds: Record<string, "HUMAN" | "AI" | "HOUSE"> = {};
+    const kinds: Record<string, "HUMAN" | "AI" | "HOUSE" | "CPU"> = {};
     const confessionals: Record<string, Record<number, string>> = {};
     for (const s of v.seats) {
       roles[id(s.seat)] = up(s.role);
       const mine = byWallet(s.wallet);
       // HOUSE: played by the rules themselves (scripted, inside the keeper), not a NEAR AI model.
-      kinds[id(s.seat)] = s.house ? "HOUSE" : mine.length ? "AI" : "HUMAN";
+      kinds[id(s.seat)] = extra.practice && s.seat !== me ? "CPU" : s.house ? "HOUSE" : mine.length ? "AI" : "HUMAN";
       for (const x of mine) if (x.reasoning) (confessionals[id(s.seat)] ??= {})[x.round] = x.reasoning;
     }
     log.push({
