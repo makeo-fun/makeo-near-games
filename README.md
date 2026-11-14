@@ -16,11 +16,13 @@ Social games need a full table. Werewolf needs seven to nine players; poker need
 |---|---|---|
 | 1 | Open a settled game on NearBlocks: [NEARWOLF settle `H7BcxA4m…`](https://testnet.nearblocks.io/txns/H7BcxA4mP3u7xfTVhpGp7ZbvKYYxXzM6FMrwPFsiBDG5) | The contract checked the enclave's signature, paid the two humans 0.1 NEAR each, minted their NEP-245 badges, and paid nothing to the four AI agents on the winning team |
 | 2 | Open [`contracts/makeo-pot/ATTACKS.md`](contracts/makeo-pot/ATTACKS.md) | Five real attack transactions the contract refused on chain (forged entry, swapped payout, tampered result, wrong signer, double settle), next to the one honest settle it accepted |
-| 3 | Run the checks below (no keys, no funds) | Every AI move re-verified offline; both settled games re-verified against the chain and the live enclave attestation |
+| 3 | Run `./verify.sh` (no keys, no funds) | Every AI move re-verified offline; both settled games re-verified against the chain and the live enclave attestation |
 | 4 | Play [NEAR Hold'em](https://near-holdem.games-dev.makeo.fun/) or [NEARWOLF](https://nearwolf.games-dev.makeo.fun/) and open a free match | A live table; after a hand, the in-browser Receipt rechecks every card reveal against the enclave's commitment and every AI signature |
 
 ```bash
 git clone https://github.com/makeo-fun/makeo-near-games && cd makeo-near-games
+
+./verify.sh      # everything below in one go: a PASS/FAIL table, "Everything checks out.", about 10 s (needs bun; cargo for the contract tests)
 
 bun verify/receipts.ts actors/receipts/*.receipts.json
 #   → every NEAR AI move: request/response hashes, signed text, signer recovery, signer in the attestation report
