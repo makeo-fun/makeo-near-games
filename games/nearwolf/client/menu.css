@@ -1,0 +1,29 @@
+/* The front door over the noir stage: title, modes, lobby. Makeo's access point owns the top right. */
+#front{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:24px 16px;background:radial-gradient(ellipse at 50% 40%,rgba(30,8,6,.55),rgba(0,0,0,.92) 70%);overflow:auto}
+#front[hidden]{display:none}
+.fr-in{width:min(520px,100%);display:flex;flex-direction:column;gap:14px;text-align:center}
+.fr-k{font-family:var(--mono);font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--bone2)}
+#front h1{font-family:var(--disp);font-weight:400;font-size:clamp(56px,15vw,120px);line-height:.9;letter-spacing:.02em;color:var(--bone)}
+#front h1 i{font-style:normal;color:var(--blood2)}
+.fr-t{font-family:var(--serif);font-style:italic;font-size:clamp(17px,4.4vw,22px);line-height:1.3;color:var(--bone)}
+.fr-menu{display:grid;gap:10px;margin-top:8px}
+.fr-menu[hidden],.fr-lobby[hidden]{display:none}
+.fr-b{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:14px 18px;border:1px solid var(--bone);background:var(--bone);color:#0b0908;cursor:pointer;text-align:left;font-family:var(--disp);font-size:22px;letter-spacing:.04em;text-transform:uppercase}
+.fr-b small{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:none;opacity:.7}
+.fr-b.ghost{background:transparent;color:var(--bone)}
+.fr-b.sm{align-items:center;font-size:14px;padding:10px}
+.fr-b:hover{border-color:var(--blood2)}
+.fr-b:disabled{opacity:.45;cursor:default}
+.fr-lobby{display:grid;gap:10px;font-family:var(--mono);font-size:12px;color:var(--bone2);letter-spacing:.06em}
+.fr-lobby .seats{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.fr-lobby .seat{padding:6px 10px;border:1px solid rgba(233,226,208,.25);color:var(--bone)}
+.fr-lobby .seat.empty{color:var(--bone2);border-style:dashed}
+.fr-lobby .head{font-family:var(--disp);font-size:26px;letter-spacing:.04em;color:var(--bone);text-transform:uppercase}
+.fr-pot{font-family:var(--mono);font-size:11px;color:var(--bone2);line-height:1.7;border-top:1px solid rgba(233,226,208,.15);padding-top:10px}
+.fr-pot b{color:var(--bone);font-weight:500}
+.fr-err{font-family:var(--mono);font-size:12px;color:var(--blood2)}
+.fr-err:empty{display:none}
+.fr-classic{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--bone2);opacity:.6}
+.fr-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:30;font-family:var(--mono);font-size:12px;background:#0b0908;border:1px solid var(--blood2);color:var(--bone);padding:10px 14px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw}
+.fr-toast.on{opacity:1}
+#hud .me{right:calc(var(--u)*2.4 + 120px)}

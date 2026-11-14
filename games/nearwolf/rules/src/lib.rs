@@ -167,7 +167,9 @@ pub enum Action {
     },
 }
 
-pub const PERSONAS: u8 = 16;
+/// The cast: the nine painted characters of the client (ids ash, wren, corin, bram, juno, hale,
+/// maud, tobias, pell). Larger tables reuse them.
+pub const PERSONAS: u8 = 9;
 pub const LINE_MAX: usize = 120;
 
 /// How many of each role a table of `n` gets: (wolves, seer, healer).

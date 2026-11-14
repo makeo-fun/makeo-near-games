@@ -40,7 +40,7 @@ export function toNearwolfView(v: GameView, extra: { receipts?: NwReceipt[]; net
     return { id: key, name: NAMES[key] ?? p.name, title: p.trade };
   });
   const mates = v.role === "wolf" ? v.seats.filter((s) => s.role === "wolf" && s.seat !== me).map((s) => id(s.seat)) : [];
-  const log: NwEvent[] = [{ t: "lobby", seats: seats.map((s) => s.id) }, { t: "deal", commitment: null, pcr0: null, keeper: "makeo-keeper" }];
+  const log: NwEvent[] = [{ t: "lobby", seats: seats.map((s) => s.id) }, { t: "deal", commitment: "", pcr0: "", keeper: "makeo-keeper" }];
   if (v.role) log.push({ t: "role", role: up(v.role), private: true });
   const { flags } = contradictions(v, (i) => seats[i]?.name ?? String(i));
   const order = ["night", "dawn", "council", "pyre", "dusk", "end"];

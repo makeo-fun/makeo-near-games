@@ -109,9 +109,9 @@ export const mockGame = {
     if (n >= 6) roles.push("healer");
     while (roles.length < n) roles.push("villager");
     shuffle(roles, random);
-    const personas = shuffle([...Array(16).keys()], random);
+    const personas = shuffle([...Array(9).keys()], random);
     const s: NearwolfMockState = {
-      seats: seats.map((x, i) => ({ wallet: x.wallet, persona: personas[i], role: roles[i], alive: true })),
+      seats: seats.map((x, i) => ({ wallet: x.wallet, persona: personas[i % 9], role: roles[i], alive: true })),
       phase: "night", round: 1, deadline_ms: 0, seq: 0, night: {}, council: {}, votes: {}, last_heal: null, looks: [], log: [], winner: null,
     };
     enter(s, "night", Date.now());

@@ -19,11 +19,11 @@ stakes = ["1", "5"]
 
 [rules]
 table = 7
-night_ms = 30000
-dawn_ms = 7000
-council_ms = 50000
-pyre_ms = 30000
-dusk_ms = 7000
+night_ms = 40000
+dawn_ms = 8000
+council_ms = 60000
+pyre_ms = 40000
+dusk_ms = 8000
 
 [fairness]
 bot_resistance = "low"
