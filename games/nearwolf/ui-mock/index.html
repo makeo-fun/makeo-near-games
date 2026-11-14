@@ -1,0 +1,1168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>NEARWOLF</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink-950:#05060f; --ink-900:#080a18; --ink-850:#0c0f22; --ink-800:#11152d; --ink-700:#181e3c; --ink-600:#232a4f;
+  --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+  --text:#eef0f8; --muted:#a3abc9; --dim:#6d7598;
+  --mo:#3ddc97; --mo-deep:#1d9e68; --pip:#a78bfa; --pip-deep:#7457d6; --zip:#5cc8ff; --zip-deep:#2a8fc4;
+  --sunny:#ffd166; --sunny-deep:#c99a2e; --ember:#ff6b5b; --ember-deep:#c23e3a; --moonlight:#f3eedd;
+  --spring:cubic-bezier(.34,1.56,.64,1); --ease:cubic-bezier(.22,1,.36,1);
+  --r:22px; --fire:.5; --lum:.8;
+  --display:'Unbounded',system-ui,sans-serif; --body:'Inter',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--ink-900);color:var(--text);font:14px/1.45 var(--body);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input{font:inherit;color:inherit}
+a{color:inherit}
+svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:-.12em}
+
+/* ---------- sky ---------- */
+.sky{position:fixed;inset:0;z-index:0;pointer-events:none}
+.sky>div{position:absolute;inset:0;transition:opacity 1.8s var(--ease)}
+.sky .s-night{background:radial-gradient(120% 80% at 50% -10%,#1f2660 0%,#10143a 35%,#080a18 75%)}
+.sky .s-dawn{opacity:0;background:radial-gradient(120% 70% at 50% 110%,#5a2a4a 0%,#2a1f4f 40%,#0c0f22 80%)}
+.sky .s-day{opacity:0;background:radial-gradient(120% 80% at 50% -10%,#2b3a74 0%,#18204a 40%,#0b0e22 80%)}
+.sky .s-pyre{opacity:0;background:radial-gradient(90% 60% at 50% 70%,#4a1f2a 0%,#1d1530 45%,#090a18 85%)}
+body[data-sky=dawn] .s-dawn,body[data-sky=day] .s-day,body[data-sky=pyre] .s-pyre{opacity:1}
+#stars{position:fixed;inset:0;z-index:0;pointer-events:none}
+.glow{position:fixed;left:0;top:0;width:520px;height:520px;margin:-260px 0 0 -260px;border-radius:50%;pointer-events:none;z-index:1;
+  background:radial-gradient(circle,rgba(167,139,250,.10),rgba(92,200,255,.04) 40%,transparent 70%);will-change:transform}
+.fog{position:fixed;left:-10%;right:-10%;bottom:-10%;height:45%;z-index:0;pointer-events:none;opacity:.5;
+  background:radial-gradient(50% 60% at 30% 100%,rgba(120,130,200,.12),transparent 70%),radial-gradient(40% 50% at 75% 100%,rgba(167,139,250,.10),transparent 70%);
+  animation:fog 40s ease-in-out infinite alternate}
+@keyframes fog{to{transform:translateX(6%)}}
+
+/* ---------- bar ---------- */
+.bar{position:relative;z-index:20;height:60px;display:flex;align-items:center;gap:16px;padding:0 20px;border-bottom:1px solid transparent}
+body[data-screen=game] .bar,body[data-screen=receipt] .bar{border-bottom-color:var(--line);background:rgba(8,10,24,.55);backdrop-filter:blur(14px)}
+.logo{display:flex;align-items:center;gap:10px;font:800 17px/1 var(--display);letter-spacing:.06em}
+.logo .dotmoon{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#e9e3cf 40%,#9aa0d6);box-shadow:0 0 16px rgba(243,238,221,.5)}
+.logo em{font-style:normal;color:var(--moonlight);opacity:.65;font-weight:500}
+.bar .room{margin:0 auto;color:var(--muted);font-size:12.5px;display:flex;gap:10px;align-items:center}
+.bar .room b{color:var(--text);font-weight:600}
+.sep{width:3px;height:3px;border-radius:50%;background:var(--dim)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--line);font-size:12px;color:var(--muted);white-space:nowrap}
+.chip.ok{color:var(--mo);border-color:rgba(61,220,151,.25);background:rgba(61,220,151,.07)}
+.bar .right{display:flex;gap:8px;align-items:center;margin-left:auto}
+.bar .room+.right{margin-left:0}
+.recbtn{display:none}
+
+/* ---------- buttons ---------- */
+.btn{--bg:var(--mo);--edge:var(--mo-deep);--fg:#062316;position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:14px 22px;border-radius:16px;background:var(--bg);color:var(--fg);font:600 14px/1 var(--display);letter-spacing:.02em;
+  box-shadow:0 5px 0 var(--edge),0 14px 30px -12px color-mix(in oklab,var(--bg) 70%,transparent);
+  transition:transform .25s var(--spring),box-shadow .25s var(--spring),opacity .2s;overflow:hidden;isolation:isolate;user-select:none}
+.btn::after{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(160px circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.45),transparent 60%);opacity:0;transition:opacity .25s}
+.btn:hover::after{opacity:1}
+.btn:hover{transform:translateY(-1px) rotate(-.4deg)}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--edge),0 6px 16px -10px var(--bg)}
+.btn[disabled]{opacity:.38;pointer-events:none;filter:saturate(.4)}
+.btn.ghost{--bg:#1d2447;--edge:#0b0e22;--fg:var(--text);border:1px solid var(--line-2)}
+.btn.ember{--bg:var(--ember);--edge:var(--ember-deep);--fg:#2a0706}
+.btn.zip{--bg:var(--zip);--edge:var(--zip-deep);--fg:#04202f}
+.btn.sunny{--bg:var(--sunny);--edge:var(--sunny-deep);--fg:#2b1d00}
+.btn.wide{width:100%}
+.btn.sm{padding:10px 14px;font-size:12px;border-radius:12px;box-shadow:0 3px 0 var(--edge)}
+
+/* ---------- screens ---------- */
+main{position:relative;z-index:5}
+.screen{display:none}
+.screen.on{display:block;animation:screenIn .7s var(--ease) both}
+@keyframes screenIn{from{opacity:0;transform:translateY(10px)}}
+
+/* ---------- Keo moon ---------- */
+.keo{position:relative;width:var(--size,120px);aspect-ratio:1;animation:breathe 6.5s ease-in-out infinite;flex:none}
+@keyframes breathe{50%{transform:scale(1.025) translateY(-2px)}}
+.keo-halo,.keo-halo-r{position:absolute;inset:-55%;border-radius:50%;pointer-events:none;transition:opacity 1.6s var(--ease)}
+.keo-halo{background:radial-gradient(circle,rgba(243,238,221,calc(.30*var(--lum))) 0%,rgba(167,170,240,calc(.12*var(--lum))) 32%,transparent 62%)}
+.keo-halo-r{opacity:0;background:radial-gradient(circle,rgba(255,107,91,.42) 0%,rgba(194,62,58,.16) 34%,transparent 62%)}
+.keo-body{position:absolute;inset:0;border-radius:50%;overflow:hidden;
+  background:radial-gradient(circle at 34% 28%,#fffdf6 0%,#f4efe0 26%,#d4d3ea 60%,#8f95cc 100%);
+  box-shadow:inset -10px -14px 28px rgba(44,44,120,.38),inset 6px 8px 18px rgba(255,255,255,.7),0 0 calc(60px*var(--lum)) rgba(243,238,221,calc(.35*var(--lum)));
+  filter:brightness(calc(.86 + .16*var(--lum)));transition:filter 1.6s var(--ease),box-shadow 1.6s var(--ease)}
+.keo-blood{position:absolute;inset:0;border-radius:50%;opacity:0;transition:opacity 1.6s var(--ease);
+  background:radial-gradient(circle at 34% 28%,#ffd0bf 0%,#ff8a70 26%,#e2474a 62%,#7d1c33 100%)}
+.keo-crater{position:absolute;border-radius:50%;background:radial-gradient(circle at 40% 35%,rgba(120,120,190,.10),rgba(80,80,160,.22));}
+.keo-face{position:absolute;inset:0;transition:transform .5s var(--ease)}
+.keo-eye{position:absolute;top:39%;width:12.5%;height:19%;border-radius:50%;background:#171a38;transition:transform .12s ease,height .4s var(--ease),top .4s var(--ease)}
+.keo-eye::after{content:"";position:absolute;width:34%;height:26%;left:22%;top:16%;border-radius:50%;background:#fff;opacity:.9}
+.keo-eye.l{left:31%}.keo-eye.r{left:56.5%}
+.keo.blink .keo-eye{transform:scaleY(.1)}
+.keo-mouth{position:absolute;left:44.5%;top:63%;width:11%;height:5.5%;border:solid #171a38;border-width:0 0 3px;border-radius:0 0 50% 50%;transition:all .6s var(--ease)}
+.keo-cheek{position:absolute;top:58%;width:10%;height:6%;border-radius:50%;background:rgba(255,140,150,.25);filter:blur(2px)}
+.keo-cheek.l{left:22%}.keo-cheek.r{left:68%}
+.keo-gloss{position:absolute;left:14%;top:8%;width:42%;height:26%;border-radius:50%;background:radial-gradient(ellipse at 50% 40%,rgba(255,255,255,.85),rgba(255,255,255,0) 70%);transform:rotate(-24deg)}
+.keo.blood .keo-blood,.keo.blood .keo-halo-r{opacity:1}
+.keo.blood .keo-halo{opacity:.2}
+.keo.blood .keo-mouth{border-radius:50%;height:3%;top:65%;left:46%;width:8%}
+.keo.blood .keo-eye{height:15%;top:42%}
+.keo.blood .keo-body{box-shadow:inset -10px -14px 28px rgba(80,10,30,.5),0 0 70px rgba(255,107,91,.45)}
+
+/* ---------- landing ---------- */
+#landing .hero{min-height:calc(100vh - 60px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 16px 56px;text-align:center;gap:22px}
+.wordmark{font:800 clamp(42px,8.4vw,96px)/.95 var(--display);letter-spacing:.03em}
+.wordmark .near{background:linear-gradient(180deg,#fffaf0,#c9cbea);-webkit-background-clip:text;background-clip:text;color:transparent}
+.wordmark .wolf{color:var(--text)}
+.tagline{max-width:560px;color:var(--muted);font-size:clamp(15px,1.6vw,18px)}
+.tagline b{color:var(--text);font-weight:600}
+.panel{background:linear-gradient(180deg,rgba(28,34,70,.72),rgba(16,20,44,.72));border:1px solid var(--line);border-radius:var(--r);backdrop-filter:blur(16px);box-shadow:0 30px 80px -30px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.05)}
+.lp-card{padding:18px;display:grid;gap:14px;width:min(440px,100%)}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:rgba(0,0,0,.25);padding:5px;border-radius:14px;border:1px solid var(--line)}
+.seg button{padding:10px 0;border-radius:10px;font:600 14px var(--display);color:var(--muted);transition:all .3s var(--spring)}
+.seg button.on{background:#262e5c;color:var(--text);box-shadow:0 3px 0 #0b0e22,inset 0 1px 0 rgba(255,255,255,.08)}
+.lp-row{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--muted);text-align:left;gap:12px}
+.lp-row b{color:var(--text);font-weight:600}
+.dist{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-start}
+.rtag{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:8px;font-size:11.5px;font-weight:600;background:color-mix(in oklab,var(--rc) 14%,transparent);color:var(--rc);border:1px solid color-mix(in oklab,var(--rc) 28%,transparent)}
+.pillars{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:720px}
+.by{color:var(--dim);font-size:12px;letter-spacing:.04em}
+
+/* ---------- lobby ---------- */
+#lobby .wrap{min-height:calc(100vh - 60px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:24px 16px}
+.lring{position:relative;width:min(360px,86vw);aspect-ratio:1}
+.lring .slot{position:absolute;width:15%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;border:1.5px dashed rgba(255,255,255,.16)}
+.lring .slot .av{opacity:0;transform:scale(.4);transition:all .6s var(--spring)}
+.lring .slot.in{border-color:transparent}
+.lring .slot.in .av{opacity:1;transform:scale(1)}
+.lring .mid{position:absolute;inset:0;display:grid;place-items:center}
+.lstat{font:600 18px var(--display);text-align:center}
+.lsub{color:var(--muted);text-align:center;max-width:420px}
+.commit{font:12px var(--mono);color:var(--muted);padding:10px 14px;border-radius:12px;background:rgba(0,0,0,.25);border:1px solid var(--line);opacity:0;transition:opacity .6s;max-width:92vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.commit.on{opacity:1}
+.commit b{color:var(--mo);font-weight:500}
+
+/* ---------- role reveal ---------- */
+#reveal .wrap{min-height:calc(100vh - 60px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:24px 16px}
+.rc-scene{perspective:1200px}
+.rcard{width:min(300px,78vw);aspect-ratio:3/4.2;position:relative;transform-style:preserve-3d;transition:transform 1.1s var(--spring);cursor:pointer}
+.rcard.flip{transform:rotateY(180deg)}
+.rface{position:absolute;inset:0;border-radius:26px;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden;border:1px solid var(--line-2);box-shadow:0 40px 90px -30px rgba(0,0,0,.8)}
+.rback{background:radial-gradient(circle at 50% 38%,#2a3270,#121638 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+.rback .pat{position:absolute;inset:12px;border-radius:18px;border:1px solid rgba(243,238,221,.12);background:repeating-radial-gradient(circle at 50% 38%,transparent 0 18px,rgba(243,238,221,.035) 18px 19px)}
+.rback .seal{font:600 11px var(--display);letter-spacing:.2em;color:var(--moonlight);opacity:.7;z-index:1}
+.rback .tap{font-size:12px;color:var(--muted);z-index:1}
+.rfront{transform:rotateY(180deg);background:radial-gradient(circle at 50% 30%,color-mix(in oklab,var(--rc) 30%,#151a3f),#0e1230 75%);display:flex;flex-direction:column;align-items:center;padding:30px 22px 18px;text-align:center;gap:10px}
+.rfront .ric{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;background:color-mix(in oklab,var(--rc) 18%,transparent);border:1px solid color-mix(in oklab,var(--rc) 40%,transparent);color:var(--rc);font-size:46px;box-shadow:0 0 50px color-mix(in oklab,var(--rc) 35%,transparent);margin-top:8px}
+.rfront .rk{font:500 11px var(--display);letter-spacing:.24em;color:var(--muted);margin-top:8px}
+.rfront .rn{font:800 34px var(--display);color:var(--rc);letter-spacing:.02em}
+.rfront .rd{color:var(--muted);font-size:13.5px;max-width:230px}
+.rfront .att{margin-top:auto;font:11px/1.5 var(--mono);color:var(--muted);border-top:1px solid var(--line);padding-top:12px;width:100%}
+.rfront .att b{color:var(--mo);font-weight:500}
+
+/* ---------- game layout ---------- */
+#game.on{display:grid;grid-template-columns:minmax(300px,340px) minmax(0,1fr) minmax(320px,360px);gap:18px;padding:14px 18px 18px;height:calc(100vh - 60px);min-height:640px}
+.g-sheet,.g-record{min-height:0;display:flex;flex-direction:column}
+.g-stage{min-width:0;display:flex;flex-direction:column;align-items:center}
+.banner{width:100%;max-width:720px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding:4px 4px 0;min-height:118px}
+.ph-k{font:500 11px var(--display);letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+.ph-t{font:700 26px/1.1 var(--display);margin-top:4px;transition:color .6s}
+.ph-i{color:var(--muted);margin-top:6px;font-size:13.5px;max-width:240px}
+body[data-phase=night] .ph-t{color:#c9cdf7}
+body[data-phase=pyre] .ph-t,body[data-phase=pyreReveal] .ph-t{color:#ffb4a6}
+.clock{justify-self:end;display:flex;flex-direction:column;align-items:center;gap:6px}
+.clock .ring{position:relative;width:68px;height:68px}
+.clock .ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.clock circle{fill:none;stroke-width:5}
+.clock .trk{stroke:rgba(255,255,255,.07)}
+.clock .prg{stroke:var(--moonlight);stroke-linecap:round;transition:stroke .4s}
+.clock b{position:absolute;inset:0;display:grid;place-items:center;font:600 16px var(--display);font-variant-numeric:tabular-nums}
+.clock.low .prg{stroke:var(--ember)}
+.clock.low b{color:var(--ember);animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.5}}
+.clock .sc{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.clock .sc svg{color:var(--mo)}
+
+.stage{position:relative;width:min(100%,calc(100vh - 60px - 150px),660px);aspect-ratio:1;margin-top:-18px;flex:none}
+.table{position:absolute;inset:19%;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,150,80,calc(.22*var(--fire))) 0%,rgba(60,40,70,.35) 26%,rgba(24,30,62,.92) 50%,rgba(14,18,40,.96) 72%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),inset 0 0 60px rgba(0,0,0,.5),0 40px 100px -20px rgba(0,0,0,.7),0 0 calc(140px*var(--fire)) rgba(255,120,70,calc(.10*var(--fire)));transition:box-shadow 1.2s,background 1.2s}
+.table::before{content:"";position:absolute;inset:7%;border-radius:50%;border:1px dashed rgba(255,255,255,.07)}
+.table::after{content:"";position:absolute;inset:-6%;border-radius:50%;border:1px solid rgba(255,255,255,.04)}
+.fire{position:absolute;left:50%;top:50%;width:15%;aspect-ratio:1/1.2;transform:translate(-50%,-62%) scale(calc(.55 + .45*var(--fire)));transform-origin:50% 90%;transition:transform 1.2s var(--spring);pointer-events:none}
+.fire svg{width:100%;height:100%;overflow:visible}
+.fire .f{transform-origin:50% 100%;animation:flick 1.6s ease-in-out infinite}
+.fire .f2{animation-duration:1.1s;animation-delay:-.4s}
+.fire .f3{animation-duration:.8s;animation-delay:-.2s}
+@keyframes flick{0%,100%{transform:scale(1,1) skewX(0)}30%{transform:scale(.96,1.06) skewX(2deg)}60%{transform:scale(1.03,.94) skewX(-2deg)}}
+.fire .fglow{position:absolute;left:50%;top:70%;width:360%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(255,170,90,calc(.30*var(--fire))),transparent 60%);transition:background 1.2s}
+.embers i{position:absolute;left:50%;bottom:30%;width:3px;height:3px;border-radius:50%;background:#ffc27a;opacity:0;animation:ember 3.2s linear infinite}
+@keyframes ember{0%{opacity:0;transform:translate(0,0)}15%{opacity:calc(.9*var(--fire))}100%{opacity:0;transform:translate(var(--dx),-120px)}}
+
+.lines{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.lines path{fill:none;stroke-width:.45;stroke-linecap:round;stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw 1.1s var(--ease) forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+.seat{position:absolute;width:11.5%;transform:translate(-50%,-38%);text-align:center;cursor:default;transition:transform .4s var(--spring)}
+.seat .avw{position:relative}
+.av{position:relative;width:100%;aspect-ratio:1;border-radius:50%;
+  background:radial-gradient(circle at 33% 26%,rgba(255,255,255,.9) 0 5%,transparent 24%),radial-gradient(circle at 40% 34%,color-mix(in oklab,var(--c) 62%,white) 0%,var(--c) 44%,color-mix(in oklab,var(--c) 50%,#0b0d22) 100%);
+  box-shadow:inset -4px -6px 12px rgba(10,12,40,.32),0 10px 22px -8px rgba(0,0,0,.7);transition:transform .4s var(--spring),filter .8s,box-shadow .3s}
+.av .eyes{position:absolute;left:50%;top:45%;width:42%;height:22%;transform:translate(-50%,-50%) translate(var(--ex,0),var(--ey,0));display:flex;justify-content:space-between}
+.av .eyes i{width:30%;height:100%;background:#141734;border-radius:50%;transition:transform .12s,height .4s,margin .4s}
+.av.blink .eyes i{transform:scaleY(.1)}
+.seat .nm{margin-top:6px;font:600 12.5px/1.1 var(--body);white-space:nowrap}
+.seat .tt{font-size:10.5px;color:var(--dim);white-space:nowrap;margin-top:2px}
+.seat.you .nm{color:var(--zip)}
+.seat.pickable{cursor:pointer}
+.seat.pickable:hover .av{transform:translateY(-4px) scale(1.06) rotate(-3deg)}
+.seat.sel .av{box-shadow:0 0 0 3px var(--ink-900),0 0 0 5.5px var(--selc,var(--zip)),0 0 30px var(--selc,var(--zip))}
+.seat.sel{transform:translate(-50%,-42%)}
+.seat.dead .av{filter:grayscale(1) brightness(.42)}
+.seat.dead .av .eyes i{height:14%;margin-top:9%;border-radius:2px}
+.seat.dead .nm{color:var(--dim);text-decoration:line-through;text-decoration-color:rgba(255,255,255,.2)}
+.seat .tick{position:absolute;right:-4%;top:-4%;width:32%;aspect-ratio:1;border-radius:50%;background:var(--mo);color:#062316;display:grid;place-items:center;font-size:9px;opacity:0;transform:scale(.3);transition:all .45s var(--spring);box-shadow:0 0 0 2px var(--ink-900)}
+.seat .tick svg{width:62%;height:62%;stroke-width:3.4}
+.seat.sealed .tick{opacity:1;transform:scale(1)}
+.seat .mark{position:absolute;left:-6%;bottom:-2%;width:34%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;box-shadow:0 0 0 2px var(--ink-900);font-size:10px}
+.seat .mark svg{width:64%;height:64%}
+.seat .mark.w{background:var(--ember);color:#2a0706}
+.seat .mark.c{background:var(--mo);color:#062316}
+.seat .role{display:inline-flex;margin-top:4px}
+.seat .role .rtag{font-size:10px;padding:2px 6px}
+.seat .vc{position:absolute;right:-12%;bottom:4%;min-width:30%;padding:2px 5px;border-radius:999px;background:var(--ember);color:#2a0706;font:700 11px var(--display);box-shadow:0 0 0 2px var(--ink-900);opacity:0;transform:scale(.4);transition:all .5s var(--spring)}
+.seat .vc.on{opacity:1;transform:scale(1)}
+.seat .bub{position:absolute;left:50%;bottom:calc(100% + 4px);transform:translateX(-50%) translateY(6px) scale(.9);white-space:nowrap;padding:5px 9px;border-radius:10px;background:#f4f1e6;color:#161a33;font:600 11px var(--body);opacity:0;transition:all .5s var(--spring);pointer-events:none;box-shadow:0 8px 20px -6px rgba(0,0,0,.6);z-index:3}
+.seat .bub::after{content:"";position:absolute;left:50%;top:100%;border:5px solid transparent;border-top-color:#f4f1e6;transform:translateX(-50%)}
+.seat .bub.on{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+.seat .hum{display:inline-flex;margin-top:3px}
+.seat.burn .av{animation:burn 1.8s var(--ease) forwards}
+@keyframes burn{0%{filter:none;box-shadow:0 0 0 0 rgba(255,107,91,0)}35%{filter:brightness(1.3) saturate(1.4);box-shadow:0 0 60px 10px rgba(255,107,91,.7)}100%{filter:grayscale(1) brightness(.42);box-shadow:0 0 0 0 rgba(255,107,91,0)}}
+
+.dawn{position:absolute;left:50%;top:50%;width:min(64%,330px);transform:translate(-50%,-50%) scale(.92);opacity:0;pointer-events:none;transition:all .8s var(--spring);text-align:center;padding:22px 20px;z-index:4}
+.dawn.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.dawn .dk{font:500 11px var(--display);letter-spacing:.22em;color:var(--muted);text-transform:uppercase}
+.dawn .dt{font:700 22px/1.2 var(--display);margin:10px 0 8px}
+.dawn .dd{color:var(--muted);font-size:13px}
+.dawn .dav{width:64px;margin:12px auto 0}
+.dawn.death .dt{color:#ffb4a6}
+.dawn.saved .dt{color:var(--mo)}
+
+/* ---------- sheet ---------- */
+.sheet{padding:20px;display:flex;flex-direction:column;gap:14px;min-height:0;overflow:auto;flex:1 1 auto;scrollbar-width:thin}
+.sh-k{font:500 11px var(--display);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px}
+.sh-t{font:700 19px/1.2 var(--display)}
+.sh-p{color:var(--muted);font-size:13.5px}
+.picks{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.pick{position:relative;display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line);text-align:left;font-weight:600;font-size:13px;transition:all .3s var(--spring);overflow:hidden}
+.pick:hover{background:rgba(255,255,255,.08);transform:translateY(-1px)}
+.pick:active{transform:translateY(2px)}
+.pick.on{border-color:var(--selc,var(--zip));background:color-mix(in oklab,var(--selc,var(--zip)) 14%,transparent);box-shadow:0 3px 0 color-mix(in oklab,var(--selc,var(--zip)) 40%,#000)}
+.pick[disabled]{opacity:.35;pointer-events:none}
+.pick small{display:block;font-weight:400;color:var(--dim);font-size:11px}
+.mini{display:inline-block;width:24px;height:24px;border-radius:50%;flex:none;background:radial-gradient(circle at 34% 28%,rgba(255,255,255,.85) 0 6%,transparent 26%),radial-gradient(circle at 40% 34%,color-mix(in oklab,var(--c) 62%,white),var(--c) 46%,color-mix(in oklab,var(--c) 50%,#0b0d22));position:relative}
+.mini.dead{filter:grayscale(1) brightness(.5)}
+.mini.sm{width:18px;height:18px}
+.moves{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.mv{display:flex;flex-direction:column;align-items:center;gap:6px;padding:11px 4px 9px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line);font:600 11.5px var(--body);transition:all .3s var(--spring);color:var(--muted)}
+.mv svg{font-size:18px;color:var(--text)}
+.mv:hover{transform:translateY(-2px) rotate(-1deg);background:rgba(255,255,255,.08)}
+.mv.on{color:var(--text);border-color:var(--sunny);background:rgba(255,209,102,.1);box-shadow:0 3px 0 rgba(201,154,46,.6)}
+.mv.on svg{color:var(--sunny)}
+.toggle{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.toggle button{padding:10px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);font:600 12px var(--display);transition:all .3s var(--spring)}
+.toggle button.on.w{background:rgba(255,107,91,.14);border-color:var(--ember);color:#ffb4a6}
+.toggle button.on.c{background:rgba(61,220,151,.12);border-color:var(--mo);color:var(--mo)}
+.field{width:100%;padding:12px 14px;border-radius:14px;background:rgba(0,0,0,.25);border:1px solid var(--line);outline:none;font-size:13.5px;transition:border-color .2s}
+.field:focus{border-color:var(--line-2);background:rgba(0,0,0,.35)}
+.field::placeholder{color:var(--dim);font-style:italic}
+.lbl{font-size:11.5px;color:var(--dim);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.sealed-note{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:rgba(61,220,151,.07);border:1px solid rgba(61,220,151,.2);color:var(--mo);font-size:13px}
+.sealed-note .muted{color:var(--muted)}
+.result{border-radius:18px;padding:18px;text-align:center;border:1px solid;animation:resIn .9s var(--spring) both}
+@keyframes resIn{from{opacity:0;transform:scale(.9) rotateX(30deg)}}
+.result.w{background:radial-gradient(circle at 50% 0,rgba(255,107,91,.22),rgba(255,107,91,.04));border-color:rgba(255,107,91,.4)}
+.result.c{background:radial-gradient(circle at 50% 0,rgba(61,220,151,.18),rgba(61,220,151,.03));border-color:rgba(61,220,151,.35)}
+.result .rv{font:700 21px/1.25 var(--display);margin:10px 0 6px}
+.result.w .rv b{color:var(--ember)}
+.result.c .rv b{color:var(--mo)}
+.result .rav{width:52px;margin:0 auto}
+.result .rs{font:11px var(--mono);color:var(--muted)}
+.quiet{text-align:center;padding:26px 10px;color:var(--muted)}
+.quiet .zz{font:600 15px var(--display);color:#c9cdf7;margin-bottom:6px}
+.peek{border:1px dashed rgba(255,255,255,.18);border-radius:16px;padding:14px;display:grid;gap:8px;background:rgba(0,0,0,.18)}
+.peek .pk{font:600 10.5px var(--display);letter-spacing:.18em;color:var(--dim);text-transform:uppercase}
+.wmsg{display:flex;gap:8px;align-items:flex-start;font-size:13px}
+.wmsg .who{font-weight:700}
+.wmsg .pk2{margin-left:auto;font-size:11.5px;color:#ffb4a6;white-space:nowrap}
+
+/* feed cards */
+.feed{display:grid;gap:8px}
+.mcard{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:start;padding:11px 12px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid var(--line);animation:cardIn .7s var(--spring) both}
+@keyframes cardIn{from{opacity:0;transform:translateY(14px) scale(.97)}}
+.mcard .mini{width:28px;height:28px}
+.mcard .who{font-weight:700;font-size:13px}
+.mcard .who span{font-weight:400;color:var(--dim);font-size:11.5px;margin-left:4px}
+.mcard .what{font-size:13px;margin-top:2px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.mcard .line{color:var(--muted);font-style:italic;font-size:12.5px;margin-top:4px}
+.mcard.you{border-color:rgba(92,200,255,.25);background:rgba(92,200,255,.05)}
+.mcard.contra{box-shadow:inset 3px 0 0 var(--ember)}
+.tg{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:7px;font-weight:600;font-size:12px}
+.tg.claim{background:rgba(167,139,250,.14);color:#cdbdff}
+.tg.report{background:rgba(92,200,255,.12);color:#9fdcff}
+.tg.accuse{background:rgba(255,107,91,.12);color:#ffb4a6}
+.tg.vouch{background:rgba(61,220,151,.11);color:#8ff0c3}
+.tg.silent{background:rgba(255,255,255,.06);color:var(--muted)}
+.tg.vote{background:rgba(255,140,90,.12);color:#ffc29f}
+.w-wolf{color:var(--ember);font-weight:700}
+.w-clear{color:var(--mo);font-weight:700}
+.sealbtn{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:8px;color:var(--mo);background:rgba(61,220,151,.08);border:1px solid rgba(61,220,151,.18);transition:all .25s var(--spring)}
+.sealbtn:hover{transform:scale(1.12);background:rgba(61,220,151,.18)}
+.sealbtn svg{width:13px;height:13px}
+.sealbtn.tiny{width:16px;height:16px;border-radius:5px}
+.sealbtn.tiny svg{width:10px;height:10px}
+
+/* tally */
+.tally{display:grid;gap:9px}
+.trow{display:grid;grid-template-columns:24px 64px 1fr 22px;gap:9px;align-items:center;font-size:13px;font-weight:600}
+.tbar{height:10px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;position:relative}
+.tbar i{position:absolute;left:0;top:0;bottom:0;border-radius:inherit;background:linear-gradient(90deg,#ff9a6b,var(--ember));animation:grow 1.2s var(--spring) .2s both}
+@keyframes grow{from{width:0}}
+.trow.top .tbar i{box-shadow:0 0 16px rgba(255,107,91,.7)}
+.trow .n{font:700 13px var(--display);text-align:right}
+.voters{display:flex;gap:3px;grid-column:3/5;margin-top:-4px}
+.verdict{padding:14px;border-radius:16px;text-align:center;background:rgba(255,107,91,.08);border:1px solid rgba(255,107,91,.25);animation:resIn .9s var(--spring) both}
+.verdict .vt{font:700 17px/1.3 var(--display)}
+.verdict .vd{color:var(--muted);font-size:12.5px;margin-top:4px}
+.verdict.tie{background:rgba(255,209,102,.07);border-color:rgba(255,209,102,.25)}
+.verdict.tie .vt{color:var(--sunny)}
+
+/* ---------- record ---------- */
+.rec{padding:16px;display:flex;flex-direction:column;gap:12px;min-height:0;flex:1}
+.trust{display:grid;gap:6px}
+.trow2{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:12px;background:rgba(0,0,0,.2);border:1px solid var(--line);font-size:12px}
+.trow2 .tic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:rgba(61,220,151,.1);color:var(--mo);flex:none}
+.trow2 b{font-weight:600;display:block;font-size:12.5px}
+.trow2 span{color:var(--dim);font:10.5px var(--mono)}
+.trow2 .okk{margin-left:auto;color:var(--mo);font-weight:700;font-size:11.5px;white-space:nowrap}
+.tabs{display:flex;gap:4px;background:rgba(0,0,0,.25);padding:4px;border-radius:12px;border:1px solid var(--line)}
+.tabs button{flex:1;padding:8px;border-radius:9px;font:600 12px var(--display);color:var(--muted);transition:all .3s var(--spring)}
+.tabs button.on{background:#262e5c;color:var(--text);box-shadow:0 2px 0 #0b0e22}
+.recbody{overflow:auto;min-height:0;flex:1;margin:0 -4px;padding:0 4px;scrollbar-width:thin}
+.contras{display:grid;gap:6px;margin-bottom:10px}
+.contra-i{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;padding:9px 11px;border-radius:12px;background:rgba(255,107,91,.06);border:1px solid rgba(255,107,91,.18);color:#ffd2c9;animation:cardIn .7s var(--spring) both}
+.contra-i i{width:7px;height:7px;border-radius:50%;background:var(--ember);margin-top:5px;flex:none;box-shadow:0 0 8px var(--ember)}
+.contra-i.soft{background:rgba(255,209,102,.05);border-color:rgba(255,209,102,.16);color:#ffe7b0}
+.contra-i.soft i{background:var(--sunny);box-shadow:0 0 8px var(--sunny)}
+.ledger{width:100%;border-collapse:separate;border-spacing:0 3px;font-size:11.5px}
+.ledger th{font:500 10px var(--display);letter-spacing:.14em;color:var(--dim);text-align:left;padding:2px 4px;font-weight:500}
+.ledger td{padding:5px 4px;vertical-align:top;background:rgba(255,255,255,.025)}
+.ledger td:first-child{border-radius:9px 0 0 9px;white-space:nowrap}
+.ledger td:last-child{border-radius:0 9px 9px 0}
+.ledger .pn{display:flex;align-items:center;gap:6px;font-weight:600;font-size:12px}
+.ledger tr.dead .pn{color:var(--dim)}
+.ledger tr.you td{background:rgba(92,200,255,.05)}
+.lc{display:grid;gap:2px;line-height:1.25}
+.lc .m{color:var(--text)}
+.lc .v{color:#ffc29f}
+.lc .x{color:var(--dim)}
+.lc .flag{border-bottom:1.5px dotted var(--ember);cursor:help}
+.lc .flag.soft{border-bottom-color:var(--sunny)}
+.lc .dth{color:var(--ember);font-weight:600}
+.legend{display:flex;gap:10px;flex-wrap:wrap;color:var(--dim);font-size:11px;margin-top:8px}
+.rhead{font:600 11px var(--display);letter-spacing:.16em;color:var(--muted);margin:12px 0 8px;text-transform:uppercase}
+.rhead:first-child{margin-top:0}
+
+/* ---------- popover ---------- */
+.pop{position:fixed;z-index:100;width:300px;max-width:calc(100vw - 24px);padding:14px;border-radius:16px;background:rgba(14,17,38,.97);border:1px solid var(--line-2);box-shadow:0 30px 60px -20px rgba(0,0,0,.8);backdrop-filter:blur(16px);font-size:12px;opacity:0;transform:translateY(6px) scale(.97);pointer-events:none;transition:opacity .2s,transform .3s var(--spring)}
+.pop.on{opacity:1;transform:none;pointer-events:auto}
+.pop .ph{display:flex;align-items:center;gap:8px;font:600 12px var(--display);margin-bottom:10px}
+.pop .ph .tic{width:24px;height:24px;border-radius:8px;display:grid;place-items:center;background:rgba(61,220,151,.12);color:var(--mo)}
+.kv{display:grid;grid-template-columns:96px 1fr;gap:5px 10px;font-size:11.5px}
+.kv dt{color:var(--dim)}
+.kv dd{font:11px var(--mono);color:var(--text);word-break:break-all}
+.ok-l{display:flex;gap:7px;align-items:center;color:var(--mo);font-size:12px;margin-top:6px}
+.pop .note{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);color:var(--dim);font-size:11.5px}
+.src{display:inline-flex;align-items:center;gap:4px;font:10.5px var(--mono);color:var(--zip);text-decoration:none;opacity:.85}
+.src:hover{opacity:1;text-decoration:underline}
+
+/* ---------- end ---------- */
+.endov{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;padding:20px;background:radial-gradient(circle at 50% 30%,rgba(30,40,90,.55),rgba(5,6,15,.86));backdrop-filter:blur(10px)}
+.endov.on{display:flex;animation:screenIn .8s var(--ease) both}
+.endcard{width:min(860px,100%);max-height:calc(100vh - 40px);overflow:auto;padding:28px;text-align:center;display:grid;gap:18px}
+.endcard .ek{font:500 11px var(--display);letter-spacing:.24em;color:var(--muted)}
+.endcard .et{font:800 clamp(30px,5vw,48px)/1.05 var(--display);background:linear-gradient(180deg,#fff,#b8f5d8);-webkit-background-clip:text;background-clip:text;color:transparent}
+.endcard .ed{color:var(--muted);max-width:520px;margin:0 auto}
+.roster{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:left}
+.rcell{display:flex;gap:10px;align-items:center;padding:11px;border-radius:16px;background:rgba(255,255,255,.035);border:1px solid var(--line);animation:cardIn .7s var(--spring) both}
+.rcell .mini{width:38px;height:38px}
+.rcell .rn2{font-weight:700;font-size:13.5px}
+.rcell .rm{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
+.htag{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:7px;font-size:10.5px;font-weight:700;letter-spacing:.03em}
+.htag.h{background:rgba(255,209,102,.12);color:var(--sunny)}
+.htag.ai{background:rgba(92,200,255,.12);color:var(--zip)}
+.split{font:700 15px var(--display);display:flex;gap:14px;justify-content:center;align-items:center}
+.split .h{color:var(--sunny)}.split .a{color:var(--zip)}
+.ebtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+
+/* ---------- receipt ---------- */
+#receipt .wrap{max-width:900px;margin:0 auto;padding:28px 18px 80px;display:grid;gap:16px}
+.rh{display:flex;gap:16px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}
+.rh h1{font:800 clamp(26px,4vw,38px)/1.1 var(--display)}
+.rh p{color:var(--muted);margin-top:6px}
+.allok{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:999px;background:rgba(61,220,151,.1);border:1px solid rgba(61,220,151,.3);color:var(--mo);font:600 13px var(--display)}
+.check{padding:18px 20px;display:grid;gap:12px}
+.ck-h{display:flex;gap:12px;align-items:flex-start}
+.ck-n{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:rgba(61,220,151,.12);color:var(--mo);font:700 13px var(--display);flex:none}
+.ck-t{font:600 15.5px/1.3 var(--display)}
+.ck-d{color:var(--muted);font-size:13px;margin-top:3px}
+.ck-ok{margin-left:auto;display:flex;align-items:center;gap:6px;color:var(--mo);font-weight:700;font-size:12.5px;white-space:nowrap}
+.hashbox{display:grid;grid-template-columns:auto 1fr auto;gap:8px 14px;align-items:center;padding:12px 14px;border-radius:14px;background:rgba(0,0,0,.25);border:1px solid var(--line);font:11.5px var(--mono)}
+.hashbox .k{color:var(--dim);font-family:var(--body);font-size:12px}
+.hashbox .val{word-break:break-all;color:var(--text)}
+.hashbox .g{color:var(--mo)}
+.ai{border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.02);overflow:hidden}
+.ai summary{list-style:none;display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer}
+.ai summary::-webkit-details-marker{display:none}
+.ai summary .mini{width:30px;height:30px}
+.ai summary .an{font-weight:700}
+.ai summary .am{font:11px var(--mono);color:var(--dim)}
+.ai summary .chev{margin-left:auto;transition:transform .3s var(--spring);color:var(--muted)}
+.ai[open] summary .chev{transform:rotate(90deg)}
+.ai .body{padding:2px 14px 14px;display:grid;gap:12px}
+.aimoves{display:grid;gap:4px}
+.amv{display:grid;grid-template-columns:74px 1fr auto;gap:10px;align-items:center;padding:7px 10px;border-radius:10px;background:rgba(0,0,0,.2);font-size:12.5px}
+.amv .when{color:var(--dim);font-size:11.5px}
+.amv .sig{font:10.5px var(--mono);color:var(--mo);white-space:nowrap}
+.reason{display:grid;gap:6px}
+.rsn{padding:10px 12px;border-radius:12px;background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.16);font-size:13px}
+.rsn b{display:block;font:600 10.5px var(--display);letter-spacing:.14em;color:#cdbdff;text-transform:uppercase;margin-bottom:3px}
+.isorow{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px 12px;border-radius:12px;background:rgba(0,0,0,.2);font-size:12.5px}
+.isorow code{font:10.5px var(--mono);color:var(--muted)}
+.txline{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.nearlink{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line-2);text-decoration:none;font:500 12px var(--mono);transition:all .25s var(--spring)}
+.nearlink:hover{transform:translateY(-1px);background:rgba(255,255,255,.09)}
+
+/* ---------- dev ---------- */
+.dev{position:fixed;left:14px;bottom:14px;z-index:60;display:flex;gap:4px;align-items:center;padding:5px;border-radius:14px;background:rgba(10,12,28,.82);border:1px solid var(--line);backdrop-filter:blur(12px);font:600 11px var(--display);opacity:.55;transition:opacity .3s}
+.dev:hover{opacity:1}
+.dev button{padding:7px 10px;border-radius:9px;color:var(--muted);display:flex;gap:5px;align-items:center;transition:all .2s}
+.dev button:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.dev button.on{color:var(--sunny)}
+.dev .dl{color:var(--dim);padding:0 6px;letter-spacing:.14em;font-size:9.5px}
+.toast{position:fixed;left:50%;top:72px;z-index:90;transform:translate(-50%,-10px);opacity:0;padding:10px 16px;border-radius:12px;background:rgba(20,24,52,.95);border:1px solid var(--line-2);font-size:13px;transition:all .4s var(--spring);pointer-events:none;max-width:92vw}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* ---------- responsive ---------- */
+@media (max-width:1180px){
+  #game.on{grid-template-columns:minmax(0,1fr) 340px;grid-template-rows:auto minmax(0,1fr)}
+  .g-stage{grid-column:1;grid-row:1/3}
+  .g-sheet{grid-column:2;grid-row:1;max-height:56vh}
+  .g-record{grid-column:2;grid-row:2}
+}
+@media (max-width:760px){
+  .bar{height:52px;padding:0 12px;gap:8px}
+  .bar .room{display:none}
+  .bar .right .chip.ok span{display:none}
+  .recbtn{display:inline-flex}
+  body[data-screen=game] .recbtn{display:inline-flex}
+  body:not([data-screen=game]) .recbtn{display:none}
+  #game.on{display:block;height:auto;min-height:0;padding:4px 12px calc(46vh + 20px)}
+  .banner{grid-template-columns:1fr auto 1fr;min-height:84px;gap:6px}
+  .ph-t{font-size:18px}
+  .ph-i{font-size:12px}
+  .ph-k{font-size:9.5px}
+  .clock .ring{width:52px;height:52px}
+  .clock b{font-size:13px}
+  #moonGame .keo{--size:62px !important}
+  .stage{width:100%;margin-top:-4px}
+  .seat{width:13%}
+  .seat .nm{font-size:10.5px;margin-top:3px}
+  .seat .tt{display:none}
+  .seat .bub{display:none}
+  .seat .role .rtag{font-size:8.5px;padding:1px 4px}
+  .seat .role .rtag svg{display:none}
+  .g-sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;max-height:46vh}
+  .g-sheet .panel{border-radius:24px 24px 0 0;border-bottom:0}
+  .g-sheet .sheet{padding:10px 16px calc(16px + env(safe-area-inset-bottom));gap:11px}
+  .g-sheet .sheet::before{content:"";display:block;width:40px;height:4px;border-radius:9px;background:rgba(255,255,255,.18);margin:0 auto 2px;flex:none}
+  .moves{grid-template-columns:repeat(5,1fr);gap:4px}
+  .mv{font-size:10.5px;padding:9px 2px 7px}
+  .picks{grid-template-columns:repeat(2,1fr)}
+  .g-record{position:fixed;left:0;right:0;top:52px;bottom:0;z-index:35;transform:translateX(102%);transition:transform .5s var(--ease);padding:10px}
+  .g-record.open{transform:none}
+  .dawn{width:72%;padding:14px}
+  .dawn .dt{font-size:16px}
+  .dawn .dav{width:42px}
+  .dev{left:auto;right:8px;bottom:calc(46vh + 8px);opacity:.8;padding:3px;border-radius:999px}
+  .dev button{padding:7px 9px}
+  .dev #dAuto,.dev #dSpeed{display:none}
+  .dev #dSkip{font-size:0;gap:0;padding:9px}
+  .dev #dSkip svg{font-size:14px}
+  body:not([data-screen=game]) .dev{bottom:12px}
+  .dev .dl,.dev .hide-m{display:none}
+  .roster{grid-template-columns:1fr 1fr}
+  .endcard{padding:20px 14px}
+  .hashbox{grid-template-columns:1fr}
+  .amv{grid-template-columns:60px 1fr}
+  .amv .sig{grid-column:2}
+  .trow{grid-template-columns:22px 56px 1fr 20px}
+}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;transition-duration:.01ms !important}}
+</style>
+</head>
+<body data-screen="landing" data-sky="night">
+<div class="sky"><div class="s-night"></div><div class="s-dawn"></div><div class="s-day"></div><div class="s-pyre"></div></div>
+<canvas id="stars"></canvas>
+<div class="fog"></div>
+<div class="glow" id="glow"></div>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-seal" viewBox="0 0 24 24"><path d="M12 2.5l7.5 3v5.6c0 4.6-3.2 8.6-7.5 10.4-4.3-1.8-7.5-5.8-7.5-10.4V5.5z"/><path d="M8.6 12.2l2.4 2.4 4.6-4.8"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-paw" viewBox="0 0 24 24"><ellipse cx="12" cy="16" rx="4.5" ry="3.8"/><circle cx="6" cy="10.5" r="1.8"/><circle cx="9.5" cy="6.5" r="1.8"/><circle cx="14.5" cy="6.5" r="1.8"/><circle cx="18" cy="10.5" r="1.8"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2.5l7.5 3v5.6c0 4.6-3.2 8.6-7.5 10.4-4.3-1.8-7.5-5.8-7.5-10.4V5.5z"/><path d="M12 8.5v7M8.5 12h7"/></symbol>
+  <symbol id="i-wheat" viewBox="0 0 24 24"><path d="M12 22V9"/><path d="M12 13c-3 0-4.5-2-4.5-4.5 2.5 0 4.5 1.5 4.5 4.5zM12 13c3 0 4.5-2 4.5-4.5-2.5 0-4.5 1.5-4.5 4.5zM12 8.5c-2 0-3-1.6-3-3.5 2 0 3 1.4 3 3.5zM12 8.5c2 0 3-1.6 3-3.5-2 0-3 1.4-3 3.5zM12 4.5V2"/></symbol>
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 2.5c.8 3.6 5.5 5.6 5.5 11a5.5 5.5 0 0 1-11 0c0-2.4 1.1-4 2.3-5 .1 2 1 3.2 2.2 3.4-.9-3.3.1-6.9 1-9.4z"/></symbol>
+  <symbol id="i-claim" viewBox="0 0 24 24"><circle cx="12" cy="9" r="5"/><path d="M8.5 13l-1.5 8 5-2.6 5 2.6-1.5-8"/></symbol>
+  <symbol id="i-accuse" viewBox="0 0 24 24"><path d="M4 12h13M13 6.5L18.5 12 13 17.5"/><circle cx="21" cy="12" r=".6"/></symbol>
+  <symbol id="i-vouch" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"/></symbol>
+  <symbol id="i-silent" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3.2"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5l11 7-11 7z"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></symbol>
+  <symbol id="i-ledger" viewBox="0 0 24 24"><rect x="4" y="3.5" width="16" height="17" rx="2.5"/><path d="M8 8.5h8M8 12h8M8 15.5h5"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+  <symbol id="i-near" viewBox="0 0 24 24"><path d="M5 19V5l14 14V5"/></symbol>
+</svg>
+
+<header class="bar">
+  <div class="logo"><span class="dotmoon"></span>NEARWOLF</div>
+  <div class="room" id="roomInfo"><span>Room <b>7Q2F</b></span><span class="sep"></span><span><b>9</b> seats</span><span class="sep"></span><span>Mixed table</span></div>
+  <div class="right">
+    <button class="chip ok" id="keeperChip"><svg class="i"><use href="#i-seal"/></svg><span>Keeper attested</span></button>
+    <button class="chip recbtn" id="recBtn"><svg class="i"><use href="#i-ledger"/></svg>Record</button>
+  </div>
+</header>
+
+<main>
+  <!-- LANDING -->
+  <section id="landing" class="screen on">
+    <div class="hero">
+      <div id="moonLanding"></div>
+      <div>
+        <div class="wordmark"><span class="near">NEAR</span><span class="wolf">WOLF</span></div>
+      </div>
+      <p class="tagline">Nine seats around one fire. Some are people, some are AI. <b>Nobody knows which until dawn breaks for the last time</b>, and nobody can cheat, including the AI.</p>
+      <div class="panel lp-card">
+        <div class="lp-row" style="flex-wrap:wrap"><span class="lbl">Room size</span><span id="distLabel" class="dist"></span></div>
+        <div class="seg" id="sizeSeg"><button data-n="6">6</button><button data-n="9" class="on">9</button><button data-n="12">12</button><button data-n="16">16</button></div>
+        <div class="lp-row"><span>Humans and AI actors share the table.<br><b>Every seat looks the same.</b></span><span class="chip">~12 min</span></div>
+        <button class="btn wide" id="playBtn"><svg class="i"><use href="#i-play"/></svg>Play now</button>
+      </div>
+      <div class="pillars">
+        <span class="chip"><svg class="i"><use href="#i-lock"/></svg>Roles dealt by an attested keeper</span>
+        <span class="chip"><svg class="i"><use href="#i-chip"/></svg>AI actors on NEAR AI Cloud</span>
+        <span class="chip"><svg class="i"><use href="#i-near"/></svg>Every game recorded on NEAR</span>
+      </div>
+      <div class="by">a Makeo game</div>
+    </div>
+  </section>
+
+  <!-- LOBBY -->
+  <section id="lobby" class="screen">
+    <div class="wrap">
+      <div class="lring" id="lring"><div class="mid" id="lmid"></div></div>
+      <div class="lstat" id="lstat">Finding a table…</div>
+      <div class="lsub" id="lsub">Humans take seats first. AI actors fill the rest. Every seat looks the same.</div>
+      <div class="commit" id="lcommit"></div>
+    </div>
+  </section>
+
+  <!-- ROLE REVEAL -->
+  <section id="reveal" class="screen">
+    <div class="wrap">
+      <div class="sh-k" style="justify-content:center"><svg class="i"><use href="#i-lock"/></svg>Your private view</div>
+      <div class="rc-scene"><div class="rcard" id="rcard">
+        <div class="rface rback"><div class="pat"></div><div id="moonCard"></div><div class="seal">SEALED TO YOU</div><div class="tap">Tap to break the seal</div></div>
+        <div class="rface rfront" id="rfront"></div>
+      </div></div>
+      <button class="btn" id="enterBtn" style="opacity:0;pointer-events:none">Enter the village</button>
+    </div>
+  </section>
+
+  <!-- GAME -->
+  <section id="game" class="screen">
+    <div class="g-sheet"><div class="panel" style="display:flex;flex-direction:column;min-height:0;flex:1"><div class="sheet" id="sheet"></div></div></div>
+    <div class="g-stage">
+      <div class="banner">
+        <div class="ph"><div class="ph-k" id="phK">Night 1</div><div class="ph-t" id="phT">Moonrise</div><div class="ph-i" id="phI"></div></div>
+        <div id="moonGame"></div>
+        <div class="clock" id="clock">
+          <div class="ring"><svg viewBox="0 0 68 68"><circle class="trk" cx="34" cy="34" r="30"/><circle class="prg" id="prg" cx="34" cy="34" r="30" stroke-dasharray="188.5" stroke-dashoffset="0"/></svg><b id="clockT">0:20</b></div>
+          <div class="sc" id="sealCount"></div>
+        </div>
+      </div>
+      <div class="stage" id="stage">
+        <div class="table"></div>
+        <div class="fire"><div class="fglow"></div>
+          <svg viewBox="0 0 100 120">
+            <defs>
+              <radialGradient id="fg1" cx="50%" cy="85%" r="70%"><stop offset="0" stop-color="#ffe7a3"/><stop offset=".45" stop-color="#ffb35c"/><stop offset="1" stop-color="#ff5b4a" stop-opacity=".0"/></radialGradient>
+              <radialGradient id="fg2" cx="50%" cy="85%" r="70%"><stop offset="0" stop-color="#fff6d8"/><stop offset=".5" stop-color="#ffd166"/><stop offset="1" stop-color="#ff8a5b" stop-opacity="0"/></radialGradient>
+            </defs>
+            <path class="f" d="M50 112 C18 104 18 70 36 50 C38 64 44 66 46 64 C40 44 50 24 62 10 C62 34 84 52 82 80 C81 100 68 112 50 112Z" fill="url(#fg1)" opacity=".9"/>
+            <path class="f f2" d="M50 112 C30 106 30 84 42 70 C44 80 48 82 50 80 C48 66 54 54 60 46 C62 62 72 74 70 90 C69 104 60 112 50 112Z" fill="url(#fg2)"/>
+            <path class="f f3" d="M50 112 C40 109 40 98 46 90 C48 96 50 96 51 94 C51 88 54 84 56 80 C58 90 62 96 60 104 C59 109 55 112 50 112Z" fill="#fffbe8" opacity=".85"/>
+            <rect x="22" y="108" width="56" height="7" rx="3.5" fill="#3a2a2e" transform="rotate(-8 50 112)"/>
+            <rect x="22" y="108" width="56" height="7" rx="3.5" fill="#2c2026" transform="rotate(8 50 112)"/>
+          </svg>
+          <div class="embers"><i style="--dx:-14px;animation-delay:0s"></i><i style="--dx:10px;animation-delay:.8s"></i><i style="--dx:-4px;animation-delay:1.6s"></i><i style="--dx:16px;animation-delay:2.3s"></i></div>
+        </div>
+        <svg class="lines" id="lines" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <defs>
+            <marker id="ah-e" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 1L9 5L0 9z" fill="#ff8a6b"/></marker>
+            <marker id="ah-s" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 1L9 5L0 9z" fill="#ffd166"/></marker>
+            <marker id="ah-g" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 1L9 5L0 9z" fill="#3ddc97"/></marker>
+          </defs>
+          <g id="lineG"></g>
+        </svg>
+        <div id="seats"></div>
+        <div class="dawn panel" id="dawn"></div>
+      </div>
+    </div>
+    <aside class="g-record" id="record"><div class="panel rec" style="height:100%">
+      <div class="trust">
+        <div class="trow2"><div class="tic"><svg class="i"><use href="#i-lock"/></svg></div><div><b>Makeo keeper · AWS Nitro</b><span>PCR0 3f9a…c21e</span></div><div class="okk">attested ✓</div></div>
+        <div class="trow2"><div class="tic"><svg class="i"><use href="#i-chip"/></svg></div><div><b>Inference · NEAR AI Cloud</b><span>Intel TDX + NVIDIA CC</span></div><div class="okk">attested ✓</div></div>
+      </div>
+      <div class="tabs" id="recTabs"><button data-t="ledger" class="on">Ledger</button><button data-t="moves">Moves</button></div>
+      <div class="recbody" id="recBody"></div>
+    </div></aside>
+    <div class="endov" id="endov"></div>
+  </section>
+
+  <!-- RECEIPT -->
+  <section id="receipt" class="screen"><div class="wrap" id="rwrap"></div></section>
+</main>
+
+<div class="pop" id="pop"></div>
+<div class="toast" id="toast"></div>
+<div class="dev" id="dev">
+  <span class="dl">DEV</span>
+  <button id="dSkip" title="Skip to next step"><svg class="i"><use href="#i-play"/></svg>skip</button>
+  <button id="dSpeed" title="Timer speed">1×</button>
+  <button id="dAuto" title="Autopilot your seat">auto</button>
+  <button id="dPeek" class="hide-m" title="Peek at other night views">peek: off</button>
+  <button id="dReset" class="hide-m" title="Restart">↺</button>
+</div>
+
+<script>
+(()=>{
+'use strict';
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ic=(id,cls='')=>`<svg class="i ${cls}"><use href="#${id}"/></svg>`;
+const rand=(a,b)=>a+Math.random()*(b-a);
+
+/* ---------------- data ---------------- */
+const P=[
+ {id:0,n:'Ash',t:'the lamplighter',c:'#5cc8ff',human:true,role:'seer',you:true},
+ {id:1,n:'Wren',t:'the herbalist',c:'#3ddc97',human:false,role:'villager'},
+ {id:2,n:'Corin',t:'the ferryman',c:'#a78bfa',human:true,role:'wolf'},
+ {id:3,n:'Bram',full:'Old Bram',t:'the miller',c:'#ffd166',human:false,role:'villager'},
+ {id:4,n:'Juno',t:'the weaver',c:'#f49ac1',human:true,role:'villager'},
+ {id:5,n:'Hale',t:'the hunter',c:'#ff8a66',human:false,role:'wolf'},
+ {id:6,n:'Maud',full:'Sister Maud',t:'of the chapel',c:'#c9cedf',human:false,role:'healer'},
+ {id:7,n:'Tobias',t:'the drunk',c:'#b8e986',human:false,role:'villager'},
+ {id:8,n:'Pell',t:'the baker',c:'#4fd1c5',human:true,role:'villager'},
+];
+const YOU=0;
+const ROLE={
+ wolf:{n:'Wolf',c:'#ff6b5b',ic:'i-paw',d:'Hunt by night with your pack. You win when wolves equal the village.'},
+ seer:{n:'Seer',c:'#5cc8ff',ic:'i-eye',d:'Each night, look at one player. The keeper tells you only: wolf, or not wolf.'},
+ healer:{n:'Healer',c:'#3ddc97',ic:'i-shield',d:'Each night, protect one player. Never the same one twice in a row.'},
+ villager:{n:'Villager',c:'#ffd166',ic:'i-wheat',d:'No power at night. Read the record. Burn the wolves.'},
+};
+const rtag=(r,iconOn=true)=>`<span class="rtag" style="--rc:${ROLE[r].c}">${iconOn?ic(ROLE[r].ic):''}${ROLE[r].n}</span>`;
+const nm=i=>i===YOU?'You':P[i].n;
+const MODEL='deepseek-ai/DeepSeek-V3.2';
+const PCR0='3f9a…c21e';
+
+// scripted storyline (AI + other human seats)
+const SCRIPT={
+ 1:{wolves:{5:4,2:4},wchat:[[5,'Juno. She watches too closely.'],[2,'Agreed. Juno.']],heal:3,
+   moves:{1:{t:'accuse',x:2,l:'Corin was down by the ferry at midnight. I smelled wolfsbane on him.'},
+          2:{t:'vouch',x:5,l:"Hale's kept the treeline all winter. I trust him."},
+          3:{t:'silent',l:'Grind slow. Speak slower.'},
+          5:{t:'report',x:6,w:true,l:'I am the Seer. The moon showed me Maud. Wolf.'},
+          6:{t:'vouch',x:1,l:"Wren's hands are for healing. Leave her be."},
+          7:{t:'accuse',x:8,l:"Pell's bread tastes of… (hic) …guilt."},
+          8:{t:'accuse',x:7,l:"Tobias can't account for a single night."}},
+   votes:{1:2,2:7,3:7,5:6,6:7,7:8,8:7}},
+ 2:{wolves:{5:1,2:1},wchat:[[2,'Wren named me. She goes.'],[5,"Wren. If they save her, tomorrow I frame Ash."]],heal:1,
+   moves:{1:{t:'accuse',x:5,l:'A Seer who names the gentlest woman in the chapel first? Convenient.'},
+          2:{t:'accuse',x:0,l:"Hale's eyes have been right before. Ash."},
+          3:{t:'silent',l:"Two voices, one truth. I'll wait for the flour to settle."},
+          5:{t:'report',x:0,w:true,l:'Last night the moon showed me Ash. Wolf. Burn the liar.'},
+          6:{t:'claim',role:'healer',l:'I am the Healer. Someone walked out of a wolf’s jaws last night. Hale is no Seer.'},
+          8:{t:'accuse',x:0,l:"I don't like it, but two voices say Ash."}},
+   votes:{1:5,2:0,3:(u)=>u===5?2:5,5:0,6:5,8:0}},
+ 3:{wolves:{5:6,2:6},wchat:[[5,"Maud claimed Healer. She's the wall. Tonight."],[2,'Her reveal will burn you, Hale.'],[5,'A living Healer burns us both.']],heal:3,
+   moves:{1:{t:'accuse',x:5,l:'Maud was the Healer. The keeper said so. Hale called her a wolf.'},
+          2:{t:'vouch',x:5,l:'Hale has never once wavered.'},
+          3:{t:'accuse',x:5,l:'The flour has settled. Hale.'},
+          5:{t:'claim',role:'seer',l:'Maud lied to the end. I stand by every vision.'},
+          8:{t:'accuse',x:5,l:'I voted wrong yesterday. Not again.'}},
+   votes:{1:5,2:0,3:5,5:0,8:5}},
+ 4:{wolves:{2:3},wchat:[[2,'Alone now. The miller.']],heal:null,
+   moves:{1:{t:'accuse',x:2,l:'Corin vouched for Hale twice and voted with him every time.'},
+          2:{t:'claim',role:'villager',l:'I’m a ferryman. I read Hale wrong, same as Pell did.'},
+          8:{t:'accuse',x:2,l:"Every vote Corin cast went where Hale's went."}},
+   votes:{1:2,2:0,8:2}},
+};
+// what "skip" / autopilot does for your seat
+const AUTO={
+ 1:{look:5,move:{t:'report',x:5,w:true,l:'I am the Seer. Hale is a wolf.'},vote:5},
+ 2:{look:2,move:{t:'claim',role:'seer',l:'Hale lies. I am the Seer, and Corin runs with him.'},vote:5},
+ 3:{look:8,move:{t:'accuse',x:5,l:'Maud died proving me right.'},vote:5},
+ 4:{look:1,move:{t:'report',x:2,w:true,l:'Night two, Corin. Wolf. Finish it.'},vote:2},
+};
+// each AI's unsealed private reasoning
+const REASON={
+ 1:[['Day 1','Villager. No power. Corin hesitated at every question at the ferry. I’ll accuse him and watch who rushes to defend him.'],
+    ['Day 2','I woke up alive, so the Healer saved me, so the wolves wanted me gone. Hale has named two people in two days. Too many names, too little proof.'],
+    ['Day 3','Maud is revealed as Healer. Hale called her a wolf. Hale is lying. Burn Hale.'],
+    ['Day 4','Corin vouched for Hale twice and mirrored his votes. The last wolf is Corin.']],
+ 3:[['Day 1','Villager. Too early to know anything. Silence costs nothing today.'],
+    ['Day 2','Hale accuses Ash, Maud says Hale’s vision is false. Words alone won’t break this. I’ll vote against the louder voice.'],
+    ['Day 3','Maud’s reveal proved her claim, so Hale’s vision of her was false. Decision made.']],
+ 5:[['Night 1','I’m a wolf with Corin. Juno asks too many questions; she goes first. Tomorrow I claim Seer and name Maud as a wolf. She’s calm, and people doubt calm.'],
+    ['Night 2','Wren accused Corin, so we take Wren. If the Healer saves her, I’ll frame Ash instead. Ash plays too carefully. Smells like the real Seer.'],
+    ['Night 3','Maud claimed Healer and called my vision false. She dies tonight. Her reveal will hurt me, but a living Healer hurts more.'],
+    ['Day 3','They’re turning. I hold the Seer claim. Retracting now is a confession.']],
+ 6:[['Night 1','Healer. Protect Bram tonight. The quiet ones are what wolves like.'],
+    ['Night 2','Wren accused Corin. If Corin is a wolf, Wren is next. Protect Wren.'],
+    ['Day 2','Wren lived, so my save worked. Hale’s vision of me is a lie, so Hale is no Seer. I’ll claim Healer to say so, though it marks me.'],
+    ['Night 3','I can’t protect Wren twice in a row. Protect Bram. If they come for me, my reveal proves Hale lied.']],
+ 7:[['Day 1','Villager. My head is pounding. Pell glared at me over the bread. Feels like a reason.']],
+};
+
+/* ---------------- hashes ---------------- */
+function hx(s,n=64){let o='',k=0;while(o.length<n){let h=0x811c9dc5^k;for(const ch of s+'#'+k){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)>>>0}o+=h.toString(16).padStart(8,'0');k++}return o.slice(0,n)}
+const B58='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+const b58=(s,n=44)=>hx(s,n*2).match(/../g).map(x=>B58[parseInt(x,16)%58]).join('');
+const sh=(x,a=6,b=4)=>x.slice(0,a)+'…'+x.slice(-b);
+const addr=i=>'0x'+hx('signer'+i,40);
+const SALT=hx('salt-7q2f',32);
+async function sha256(str){
+  try{ if(crypto?.subtle){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')} }catch(e){}
+  return hx(str,64);
+}
+const rolePayload=()=>P.map(p=>`${p.id}:${p.role}`).join('|')+'|'+SALT;
+
+/* ---------------- state ---------------- */
+const DUR={night:20,dawn:5,council:45,councilReveal:9,pyre:20,pyreReveal:7};
+let st;
+function fresh(){return{screen:'landing',round:1,phase:null,left:0,dur:1,alive:P.map(()=>true),revealed:{},moves:{},votes:{},looks:{},
+  sealed:new Set(),sealAt:{},deaths:[],ended:false,mySeal:false,sel:null,draft:{t:null,x:null,role:null,w:true,l:''},
+  lastNight:null,lastBurn:null,nightsSurvived:0,commit:null,recTab:'ledger',fast:false,lookShown:false,winner:null}}
+st=fresh();
+let speed=1, auto=false, peek='off';
+const ACTION=['night','council','pyre'];
+
+/* ---------------- ui helpers ---------------- */
+let toastT;function toast(m){const t=$('#toast');t.innerHTML=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2600)}
+function show(id){$$('.screen').forEach(s=>s.classList.toggle('on',s.id===id));st.screen=id;document.body.dataset.screen=id;window.scrollTo(0,0)}
+function keoHTML(size){return `<div class="keo" style="--size:${typeof size==="number"?size+"px":size}"><div class="keo-halo"></div><div class="keo-halo-r"></div><div class="keo-body"><div class="keo-blood"></div>
+<div class="keo-crater" style="left:62%;top:20%;width:16%;height:16%"></div><div class="keo-crater" style="left:16%;top:60%;width:12%;height:12%"></div><div class="keo-crater" style="left:70%;top:66%;width:9%;height:9%"></div>
+<div class="keo-face"><i class="keo-cheek l"></i><i class="keo-cheek r"></i><i class="keo-eye l"></i><i class="keo-eye r"></i><i class="keo-mouth"></i></div><div class="keo-gloss"></div></div></div>`}
+$('#moonLanding').innerHTML=keoHTML('min(220px,48vw)');
+$('#moonCard').innerHTML=keoHTML(110);
+$('#moonGame').innerHTML=keoHTML(108);
+const avHTML=(i,extra='')=>`<div class="av" style="--c:${P[i].c}" ${extra}><div class="eyes"><i></i><i></i></div></div>`;
+const mini=(i,cls='')=>`<span class="mini ${cls} ${st.alive[i]||st.screen==='receipt'?'':'dead'}" style="--c:${P[i].c}"></span>`;
+
+/* ---------------- stars ---------------- */
+const cv=$('#stars'),cx=cv.getContext('2d');let stars=[];
+function initStars(){const d=Math.min(devicePixelRatio||1,2);cv.width=innerWidth*d;cv.height=innerHeight*d;cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';
+  stars=Array.from({length:Math.round(innerWidth*innerHeight/7000)},()=>({x:Math.random()*cv.width,y:Math.random()*cv.height*.85,r:rand(.3,1.3)*d,p:rand(0,6.28),s:rand(.4,1.4)}))}
+initStars();addEventListener('resize',()=>{initStars();placeSeats()});
+function drawStars(t){if(cv.style.width!==innerWidth+'px'||cv.style.height!==innerHeight+'px')initStars();cx.clearRect(0,0,cv.width,cv.height);const day=['council','councilReveal','pyre','pyreReveal'].includes(st.phase)&&st.screen==='game';
+  for(const s of stars){const a=(.35+.65*(.5+.5*Math.sin(t/1000*s.s+s.p)))*(day?.45:1);cx.globalAlpha=a*.8;cx.fillStyle='#e9e6ff';cx.beginPath();cx.arc(s.x,s.y,s.r,0,6.283);cx.fill()}}
+
+/* ---------------- pointer glow / eyes ---------------- */
+let px=innerWidth/2,py=innerHeight/3,gx=px,gy=py,focusEl=null;
+addEventListener('pointermove',e=>{px=e.clientX;py=e.clientY;const b=e.target.closest?.('.btn,.pick,.mv');if(b){const r=b.getBoundingClientRect();b.style.setProperty('--mx',(e.clientX-r.left)+'px');b.style.setProperty('--my',(e.clientY-r.top)+'px')}
+  const rc=$('#rcard');if(st.screen==='reveal'&&rc){const r=rc.getBoundingClientRect();const dx=(e.clientX-(r.left+r.width/2))/r.width,dy=(e.clientY-(r.top+r.height/2))/r.height;rc.style.setProperty('--tx',dy*-8+'deg');rc.style.setProperty('--ty',dx*10+'deg');rc.style.transform=`${rc.classList.contains('flip')?'rotateY(180deg)':''} rotateX(${dy*-8}deg) rotateY(${dx*(rc.classList.contains('flip')?-10:10)}deg)`}},{passive:true});
+const eyeState=new WeakMap();
+function trackEyes(){
+  for(const k of $$('.keo')){if(!k.offsetParent)continue;const r=k.getBoundingClientRect();const c={x:r.left+r.width/2,y:r.top+r.height/2};
+    let tx=px,ty=py;const f=focusEl&&focusEl.isConnected?focusEl:null;if(f){const fr=f.getBoundingClientRect();tx=fr.left+fr.width/2;ty=fr.top+fr.height/2}
+    let dx=tx-c.x,dy=ty-c.y;const d=Math.hypot(dx,dy)||1;const m=Math.min(1,d/400)*r.width*.07;dx=dx/d*m;dy=dy/d*m;
+    const s=eyeState.get(k)||{x:0,y:0};s.x+=(dx-s.x)*.08;s.y+=(dy-s.y)*.08;eyeState.set(k,s);k.querySelector('.keo-face').style.transform=`translate(${s.x}px,${s.y}px)`}
+}
+setInterval(()=>{const ks=$$('.keo');ks.forEach(k=>{if(Math.random()<.5){k.classList.add('blink');setTimeout(()=>k.classList.remove('blink'),150)}});
+  const avs=$$('#seats .seat:not(.dead) .av,.lring .av');if(avs.length){const a=avs[Math.floor(Math.random()*avs.length)];a.classList.add('blink');setTimeout(()=>a.classList.remove('blink'),140)}},1400);
+
+/* ---------------- landing ---------------- */
+function dist(n){const w=Math.max(1,Math.floor(n/4));const v=n-w-2;return {w,v}}
+function renderDist(n){const d=dist(n);$('#distLabel').innerHTML=`${rtag('wolf')}<span style="color:var(--muted)">×${d.w}</span>${rtag('seer')}${rtag('healer')}${rtag('villager')}<span style="color:var(--muted)">×${d.v}</span>`}
+let roomN=9;renderDist(9);
+$('#sizeSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$$('#sizeSeg button').forEach(x=>x.classList.toggle('on',x===b));roomN=+b.dataset.n;renderDist(roomN)});
+$('#playBtn').addEventListener('click',()=>{if(roomN!==9)toast('Launch-day demo table seats 9. Roles scale the same way.');startLobby()});
+
+/* ---------------- lobby ---------------- */
+const wait=ms=>new Promise(r=>{const t0=performance.now();const tick=()=>{if(st.fast||performance.now()-t0>=ms/speed)return r();setTimeout(tick,30)};tick()});
+async function startLobby(){
+  show('lobby');st.fast=false;const L=$('#lring');L.querySelectorAll('.slot').forEach(s=>s.remove());
+  P.forEach((p,i)=>{const a=(90+i*40)*Math.PI/180;const s=document.createElement('div');s.className='slot';s.style.left=50+40*Math.cos(a)+'%';s.style.top=50+40*Math.sin(a)+'%';s.innerHTML=avHTML(i);L.appendChild(s)});
+  $('#lmid').innerHTML=keoHTML('clamp(80px,26vw,110px)');$('#lcommit').classList.remove('on');
+  const order=[0,4,8,2,1,3,5,6,7];// humans first, then AI fill
+  $('#lsub').textContent='Humans take seats first. AI actors fill the rest. Every seat looks the same.';
+  for(let k=0;k<order.length;k++){await wait(k<4?520:300);L.querySelectorAll('.slot')[order[k]].classList.add('in');$('#lstat').textContent=`Finding a table · ${k+1}/9`}
+  await wait(400);$('#lstat').textContent='The keeper is dealing roles…';$('#lsub').textContent='Roles are shuffled inside an attested AWS Nitro enclave and committed before anyone sees them.';
+  st.commit=await sha256(rolePayload());
+  $('#lcommit').innerHTML=`commit <b>sha256</b> ${sh(st.commit,14,10)} · PCR0 ${PCR0}`;$('#lcommit').classList.add('on');
+  await wait(1700);startReveal();
+}
+
+/* ---------------- reveal ---------------- */
+function startReveal(){show('reveal');st.fast=false;const r=ROLE[P[YOU].role];const rc=$('#rcard');rc.classList.remove('flip');rc.style.transform='';
+  $('#enterBtn').style.cssText='opacity:0;pointer-events:none;transition:opacity .6s';
+  $('#rfront').style.setProperty('--rc',r.c);
+  $('#rfront').innerHTML=`<div class="rk">YOU ARE THE</div><div class="ric">${ic(r.ic)}</div><div class="rn">${r.n}</div><div class="rd">${r.d}</div>
+  <div class="att">sealed to you by the keeper<br>PCR0 ${PCR0} · <b>attested ✓</b></div>`}
+function flipCard(){const rc=$('#rcard');if(rc.classList.contains('flip'))return;rc.style.transform='';rc.classList.add('flip');setTimeout(()=>{$('#enterBtn').style.cssText='opacity:1;transition:opacity .6s'},700)}
+$('#rcard').addEventListener('click',flipCard);
+$('#enterBtn').addEventListener('click',startGame);
+
+/* ---------------- game ---------------- */
+function pos(i){const a=(90+i*40)*Math.PI/180;return{x:50+40.5*Math.cos(a),y:50+40.5*Math.sin(a)}}
+function buildSeats(){const S=$('#seats');S.innerHTML='';P.forEach((p,i)=>{const s=document.createElement('div');s.className='seat'+(p.you?' you':'');s.dataset.i=i;
+  // eyes look toward the fire
+  const q=pos(i);const ex=((50-q.x)/40*2.2).toFixed(1),ey=((50-q.y)/40*1.6).toFixed(1);
+  s.innerHTML=`<div class="bub"></div><div class="avw">${avHTML(i,`style="--c:${p.c};--ex:${ex}px;--ey:${ey}px"`)}<div class="tick">${ic('i-check')}</div><div class="markw"></div><div class="vc"></div></div>
+  <div class="nm">${p.you?'You':esc(p.n)}</div><div class="tt">${p.you?'Ash, '+p.t:esc(p.t)}</div><div class="role"></div><div class="hum"></div>`;
+  s.addEventListener('click',()=>seatClick(i));s.addEventListener('mouseenter',()=>{if(s.classList.contains('pickable'))focusEl=s});s.addEventListener('mouseleave',()=>{focusEl=st.sel!=null?seatEl(st.sel):null});
+  S.appendChild(s)});placeSeats()}
+function placeSeats(){$$('#seats .seat').forEach(s=>{const q=pos(+s.dataset.i);s.style.left=q.x+'%';s.style.top=q.y+'%'})}
+const seatEl=i=>$(`#seats .seat[data-i="${i}"]`);
+function startGame(){show('game');buildSeats();setMoonLum();enter('night')}
+
+function aliveIds(){return P.map(p=>p.id).filter(i=>st.alive[i])}
+function setSky(){const p=st.phase;document.body.dataset.phase=p;document.body.dataset.sky=p==='night'?'night':p==='dawn'?'dawn':(p==='pyre'||p==='pyreReveal')?'pyre':'day';
+  const f={night:.42,dawn:.7,council:.85,councilReveal:.9,pyre:1.25,pyreReveal:1.5}[p]||.5;document.documentElement.style.setProperty('--fire',f)}
+function setMoonLum(){document.documentElement.style.setProperty('--lum',(.7+.2*st.nightsSurvived).toFixed(2))}
+function moonBlood(on){$$('#moonGame .keo').forEach(k=>k.classList.toggle('blood',on))}
+
+function enter(phase){
+  st.phase=phase;st.dur=st.left=DUR[phase];st.sealed=new Set();st.mySeal=false;st.sel=null;focusEl=null;st.lookShown=false;
+  st.draft={t:null,x:null,role:null,w:true,l:''};
+  st.sealAt={};if(ACTION.includes(phase)){aliveIds().forEach(i=>{if(i!==YOU)st.sealAt[i]=st.dur*rand(.08,.5)})}
+  $('#lineG').innerHTML='';$$('.seat .bub,.seat .vc').forEach(b=>b.classList.remove('on'));
+  if(phase==='night'){moonBlood(false)}
+  if(phase==='dawn'){showDawn()}else{$('#dawn').classList.remove('on')}
+  setSky();renderAll();
+  if(auto&&ACTION.includes(phase)&&st.alive[YOU])setTimeout(()=>{if(st.phase===phase&&!st.mySeal)autoAct()},2200/speed);
+}
+function next(){
+  const p=st.phase;
+  if(p==='night'){resolveNight();const w=checkWin();if(w)return endGame(w);enter('dawn')}
+  else if(p==='dawn')enter('council');
+  else if(p==='council'){revealMoves();enter('councilReveal');drawCouncil()}
+  else if(p==='councilReveal')enter('pyre');
+  else if(p==='pyre'){resolveVotes();enter('pyreReveal');drawVotes()}
+  else if(p==='pyreReveal'){const w=checkWin();if(w)return endGame(w);st.round++;enter('night')}
+}
+function checkWin(){const a=aliveIds();const w=a.filter(i=>P[i].role==='wolf').length;if(w===0)return'village';if(w>=a.length-w)return'wolves';return null}
+
+/* night */
+function resolveNight(){const s=SCRIPT[st.round];const picks=Object.entries(s.wolves).filter(([w])=>st.alive[+w]).map(([,t])=>t);const tgt=picks[0];
+  if(tgt!=null&&tgt!==s.heal){st.alive[tgt]=false;st.revealed[tgt]=P[tgt].role;st.deaths.push({r:st.round,i:tgt,how:'night'});st.lastNight={died:tgt}}
+  else st.lastNight={died:null,saved:tgt!=null};
+  st.nightsSurvived++;setMoonLum()}
+function showDawn(){const d=$('#dawn');const n=st.lastNight;d.className='dawn panel '+(n.died!=null?'death':'saved');
+  if(n.died!=null){moonBlood(true);d.innerHTML=`<div class="dk">Dawn · Day ${st.round}</div><div class="dav">${avHTML(n.died).replace('class="av"','class="av" style="--c:'+P[n.died].c+';filter:grayscale(1) brightness(.5)"')}</div><div class="dt">${esc(P[n.died].full||P[n.died].n)} did not wake.</div><div class="dd">The keeper reveals: ${rtag(P[n.died].role)}</div>`}
+  else{moonBlood(false);d.innerHTML=`<div class="dk">Dawn · Day ${st.round}</div><div class="dt">Everyone woke.</div><div class="dd">The Healer saved someone tonight.</div>`}
+  requestAnimationFrame(()=>{if(st.phase==='dawn')d.classList.add('on')})}
+
+/* council */
+function revealMoves(){const s=SCRIPT[st.round];const m={};aliveIds().forEach(i=>{if(i===YOU)m[i]=st.mySeal?{...st.draft}:{t:'silent',l:''};else if(s.moves[i])m[i]=s.moves[i]});st.moves[st.round]=m}
+function moveText(m,short=false){
+  if(!m)return'';
+  if(m.t==='claim')return short?`Claims ${ROLE[m.role].n}`:`<span class="tg claim">${ic('i-claim')}Claims</span> <b>${ROLE[m.role].n}</b>`;
+  if(m.t==='report')return short?`Saw ${nm(m.x)}: ${m.w?'WOLF':'not wolf'}`:`<span class="tg report">${ic('i-eye')}Reports</span> saw <b>${nm(m.x)}</b>: <span class="${m.w?'w-wolf':'w-clear'}">${m.w?'WOLF':'not wolf'}</span>`;
+  if(m.t==='accuse')return short?`Accuses ${nm(m.x)}`:`<span class="tg accuse">${ic('i-accuse')}Accuses</span> <b>${nm(m.x)}</b>`;
+  if(m.t==='vouch')return short?`Vouches ${nm(m.x)}`:`<span class="tg vouch">${ic('i-vouch')}Vouches for</span> <b>${nm(m.x)}</b>`;
+  return short?'Silent':`<span class="tg silent">${ic('i-silent')}Stays silent</span>`}
+function drawCouncil(){const m=st.moves[st.round];let k=0;const paths=[];
+  Object.entries(m).forEach(([i,mv])=>{i=+i;const b=seatEl(i).querySelector('.bub');b.textContent=moveText(mv,true);const ph=st.phase+st.round;setTimeout(()=>{if(st.phase+st.round===ph)b.classList.add('on')},k++*140);
+    if(mv.x!=null&&(mv.t==='accuse'||mv.t==='vouch'||mv.t==='report'))paths.push(curve(i,mv.x,mv.t==='vouch'?'#3ddc97':mv.t==='accuse'?'#ffd166':(mv.w?'#ffd166':'#3ddc97'),mv.t==='vouch'?'g':'s',.5))});
+  $('#lineG').innerHTML=paths.join('')}
+function curve(a,b,col,mk,op=.8){const A=pos(a),B=pos(b);const C={x:(A.x+B.x)/2+(50-(A.x+B.x)/2)*.45,y:(A.y+B.y)/2+(50-(A.y+B.y)/2)*.45};
+  const sh2=(P1,P2,d)=>{const dx=P2.x-P1.x,dy=P2.y-P1.y,l=Math.hypot(dx,dy)||1;return{x:P1.x+dx/l*d,y:P1.y+dy/l*d}};const a2=sh2(A,C,5.5),b2=sh2(B,C,6.5);
+  const len=Math.hypot(C.x-a2.x,C.y-a2.y)+Math.hypot(b2.x-C.x,b2.y-C.y)+2;
+  return `<path d="M${a2.x} ${a2.y} Q${C.x} ${C.y} ${b2.x} ${b2.y}" stroke="${col}" opacity="${op}" marker-end="url(#ah-${mk})" style="--len:${len}"/>`}
+
+/* pyre */
+function resolveVotes(){const s=SCRIPT[st.round];const myVote=st.mySeal?st.draft.x:null;const v={};
+  aliveIds().forEach(i=>{if(i===YOU){v[i]=myVote}else if(s.votes[i]!==undefined){const t=typeof s.votes[i]==='function'?s.votes[i](myVote):s.votes[i];v[i]=st.alive[t]?t:null}});
+  st.votes[st.round]=v;const tally={};Object.values(v).forEach(t=>{if(t!=null)tally[t]=(tally[t]||0)+1});
+  const max=Math.max(0,...Object.values(tally));const top=Object.keys(tally).filter(k=>tally[k]===max).map(Number);
+  if(max>0&&top.length===1){const b=top[0];st.alive[b]=false;st.revealed[b]=P[b].role;st.deaths.push({r:st.round,i:b,how:'pyre'});st.lastBurn={b,tally}}
+  else st.lastBurn={b:null,tally,tie:top}}
+function drawVotes(){const v=st.votes[st.round];const paths=[];Object.entries(v).forEach(([i,t])=>{if(t!=null)paths.push(curve(+i,t,'#ff8a6b','e',.85))});$('#lineG').innerHTML=paths.join('');
+  const t=st.lastBurn.tally,ph=st.phase+st.round;setTimeout(()=>{if(st.phase+st.round!==ph)return;Object.entries(t).forEach(([i,n])=>{const vc=seatEl(+i).querySelector('.vc');vc.textContent=n;vc.classList.add('on')})},500);
+  if(st.lastBurn.b!=null){const s=seatEl(st.lastBurn.b);s.classList.add('burn');setTimeout(()=>s.classList.remove('burn'),2400)}}
+
+/* user actions */
+function canPick(i){if(!st.alive[i]||st.mySeal||!st.alive[YOU])return false;const p=st.phase;
+  if(p==='night')return P[YOU].role==='seer'&&i!==YOU;
+  if(p==='council')return['report','accuse','vouch'].includes(st.draft.t)&&i!==YOU;
+  if(p==='pyre')return i!==YOU;return false}
+function seatClick(i){if(!canPick(i))return;st.sel=i;st.draft.x=i;focusEl=seatEl(i);renderAll()}
+function seal(){const p=st.phase;
+  if(p==='night'){if(st.draft.x==null)return;const x=st.draft.x;st.looks[st.round]={x,wolf:P[x].role==='wolf'};setTimeout(()=>{st.lookShown=true;renderSheet();updateSeats()},1100/Math.min(speed,3))}
+  st.mySeal=true;st.sealed.add(YOU);
+  const alive=aliveIds();if(alive.every(i=>st.sealed.has(i)))st.left=Math.min(st.left,1.6);else{/* hurry the table along once you are in */Object.keys(st.sealAt).forEach(k=>{st.sealAt[k]=Math.min(st.sealAt[k],st.dur-st.left+rand(.6,2.2))})}
+  renderAll()}
+function autoAct(){const a=AUTO[st.round];if(!a||st.mySeal||!st.alive[YOU])return;const p=st.phase;
+  if(p==='night'&&st.alive[a.look]){st.draft.x=a.look;st.sel=a.look}
+  else if(p==='council'){const m={...a.move};if(m.x!=null&&!st.alive[m.x]){m.t='silent';delete m.x}st.draft={...st.draft,...m}}
+  else if(p==='pyre'){st.draft.x=st.alive[a.vote]?a.vote:null;st.sel=st.draft.x}
+  if(p==='night'&&st.draft.x==null)return;seal()}
+
+/* ---------------- render ---------------- */
+function renderAll(){renderBanner();updateSeats();renderSheet();renderRecord()}
+function renderBanner(){const r=st.round,p=st.phase,s=st.mySeal;const isNight=p==='night';
+  $('#phK').textContent=(isNight?'Night ':'Day ')+r;
+  const T={night:'Moonrise',dawn:'Dawn',council:'Council',councilReveal:'Council',pyre:'The Pyre',pyreReveal:'The Pyre'}[p];$('#phT').textContent=T;
+  let I='';if(p==='night')I=s?'Vision sealed. The village sleeps.':'Choose one player to look at.';
+  else if(p==='dawn')I=st.lastNight.died!=null?`${nm(st.lastNight.died)} did not wake.`:'Everyone woke.';
+  else if(p==='council')I=s?'Move sealed. Waiting for the table.':'Pick one move. All moves reveal at once.';
+  else if(p==='councilReveal')I='All moves revealed. Read the record.';
+  else if(p==='pyre')I=s?'Vote sealed.':'Vote to burn one player.';
+  else if(p==='pyreReveal')I=st.lastBurn.b!=null?`${nm(st.lastBurn.b)} burns.`:'A tie. The pyre stays dark.';
+  $('#phI').textContent=I}
+function updateClock(){const f=st.dur?st.left/st.dur:0;$('#prg').style.strokeDashoffset=(188.5*(1-f)).toFixed(1);const s=Math.ceil(st.left);$('#clockT').textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+  $('#clock').classList.toggle('low',ACTION.includes(st.phase)&&st.left<5);
+  const sc=$('#sealCount');if(ACTION.includes(st.phase)){const a=aliveIds().length;sc.innerHTML=`${ic('i-seal')}${st.sealed.size}/${a} sealed`}else sc.innerHTML=st.phase==='dawn'?'keeper reveal':'revealed'}
+function updateSeats(){const selc=st.phase==='pyre'?'var(--ember)':st.phase==='council'?'var(--sunny)':'var(--zip)';document.documentElement.style.setProperty('--selc',selc);
+  $$('#seats .seat').forEach(s=>{const i=+s.dataset.i;s.classList.toggle('dead',!st.alive[i]);s.classList.toggle('sealed',ACTION.includes(st.phase)&&st.sealed.has(i));s.classList.toggle('pickable',canPick(i));s.classList.toggle('sel',st.sel===i);
+    const look=Object.values(st.looks).find(l=>l.x===i);const mw=s.querySelector('.markw');
+    mw.innerHTML=look&&(st.lookShown||Object.keys(st.looks).some(r=>+r<st.round||st.phase!=='night')||st.ended)?`<div class="mark ${look.wolf?'w':'c'}" title="Your vision: ${look.wolf?'wolf':'not wolf'}">${ic(look.wolf?'i-paw':'i-check')}</div>`:'';
+    const rr=s.querySelector('.role');const rv=st.ended?P[i].role:(st.revealed[i]||(i===YOU?P[YOU].role:null));rr.innerHTML=rv?rtag(rv):'';
+    s.querySelector('.hum').innerHTML=st.ended?`<span class="htag ${P[i].human?'h':'ai'}">${P[i].human?'Human':'AI'}</span>`:''})}
+function picksHTML(filter,selc){return `<div class="picks">${aliveIds().filter(filter).map(i=>`<button class="pick ${st.draft.x===i?'on':''}" style="--selc:${selc}" data-pick="${i}">${mini(i)}<span>${nm(i)}<small>${esc(P[i].t)}</small></span></button>`).join('')}</div>`}
+function renderSheet(){const S=$('#sheet');const p=st.phase,r=st.round;let h='';
+  if(p==='night'){
+    h+=`<div class="sh-k">${ic('i-moon')}Night ${r} · your private action</div>`;
+    if(!st.mySeal){h+=`<div class="sh-t">Who will the moon show you?</div><div class="sh-p">Pick one player. The keeper answers only: wolf, or not wolf. Nobody else sees the answer.</div>${picksHTML(i=>i!==YOU,'var(--zip)')}
+      <button class="btn zip wide" id="sealBtn" ${st.draft.x==null?'disabled':''}>${ic('i-lock')}Seal to the keeper</button>`}
+    else{const l=st.looks[r];
+      if(!st.lookShown)h+=`<div class="sealed-note">${ic('i-seal')}<span>Sealed to the keeper. <span class="muted">Reading the moon…</span></span></div><div class="quiet"><div class="zz">The village sleeps.</div>Nine seats, nine sealed actions. Villagers seal a quiet night so nobody can tell who has a power.</div>`;
+      else h+=`<div class="result ${l.wolf?'w':'c'}"><div class="rav">${avHTML(l.x)}</div><div class="rv">${nm(l.x)} is <b>${l.wolf?'a WOLF':'not a wolf'}</b></div><div class="rs">sealed to you · keeper sig ✓ · PCR0 ${PCR0}</div></div>
+        <div class="sh-p">This stays private. You can report it at the council, or keep it to yourself. Others may lie about their visions too.</div>`}
+    if(peek!=='off')h+=peekHTML();
+  }
+  else if(p==='dawn'){const n=st.lastNight;h+=`<div class="sh-k">${ic('i-moon')}Dawn · Day ${r}</div><div class="sh-t">${n.died!=null?`${esc(P[n.died].full||P[n.died].n)} did not wake.`:'Everyone woke.'}</div>
+    <div class="sh-p">${n.died!=null?`The keeper reveals the role: ${rtag(P[n.died].role)}`:'The Healer protected the wolves’ target. The keeper does not say who.'}</div><div class="sh-p">The council opens in a moment.</div>`}
+  else if(p==='council'){
+    h+=`<div class="sh-k">${ic('i-claim')}Day ${r} · council</div>`;
+    if(!st.mySeal){const d=st.draft;
+      h+=`<div class="sh-t">Make one move</div><div class="sh-p">Everyone picks at the same time. Nothing is shown until the council closes.</div>
+      <div class="moves">${[['claim','i-claim','Claim'],['report','i-eye','Report'],['accuse','i-accuse','Accuse'],['vouch','i-vouch','Vouch'],['silent','i-silent','Silent']].map(([t,icn,l])=>`<button class="mv ${d.t===t?'on':''}" data-mv="${t}">${ic(icn)}${l}</button>`).join('')}</div>`;
+      if(d.t==='claim')h+=`<div class="lbl">Claim the role</div><div class="picks" style="grid-template-columns:repeat(3,1fr)">${['seer','healer','villager'].map(x=>`<button class="pick ${d.role===x?'on':''}" style="--selc:${ROLE[x].c};justify-content:center" data-role="${x}">${ROLE[x].n}</button>`).join('')}</div>`;
+      if(['report','accuse','vouch'].includes(d.t)){h+=`<div class="lbl">${d.t==='report'?'Whose vision':d.t==='accuse'?'Accuse':'Vouch for'} <span style="text-transform:none;letter-spacing:0;font-weight:400">· or tap a seat</span></div>${picksHTML(i=>i!==YOU,'var(--sunny)')}`;
+        if(d.t==='report')h+=`<div class="toggle"><button class="w ${d.w?'on':''}" data-w="1">WOLF</button><button class="c ${!d.w?'on':''}" data-w="0">not wolf</button></div>`}
+      if(d.t)h+=`<input class="field" id="lineIn" maxlength="90" placeholder="One short line, in character (optional)" value="${esc(d.l)}">`;
+      const ok=d.t==='silent'||(d.t==='claim'&&d.role)||(['report','accuse','vouch'].includes(d.t)&&d.x!=null);
+      h+=`<button class="btn sunny wide" id="sealBtn" ${ok?'':'disabled'}>${ic('i-lock')}Seal move</button>`}
+    else h+=`<div class="sealed-note">${ic('i-seal')}<span>Your move is sealed.</span></div><div class="mcard you" style="animation:none">${mini(YOU)}<div><div class="who">You</div><div class="what">${moveText(st.draft)}</div>${st.draft.l?`<div class="line">“${esc(st.draft.l)}”</div>`:''}</div><span></span></div><div class="sh-p">All moves reveal together when the council closes.</div>`}
+  else if(p==='councilReveal'){const m=st.moves[r];const C=contradictions();
+    h+=`<div class="sh-k">${ic('i-ledger')}Day ${r} · moves revealed</div><div class="feed">${Object.entries(m).map(([i,mv],k)=>cardHTML(+i,mv,r,k,C)).join('')}</div>`}
+  else if(p==='pyre'){
+    h+=`<div class="sh-k">${ic('i-flame')}Day ${r} · the pyre</div>`;
+    if(!st.mySeal)h+=`<div class="sh-t">Who burns?</div><div class="sh-p">One vote each. The player with the most votes burns and the keeper reveals their role. A tie burns no one.</div>${picksHTML(i=>i!==YOU,'var(--ember)')}
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:8px"><button class="btn ghost sm" id="abstain">Abstain</button><button class="btn ember" id="sealBtn" ${st.draft.x==null?'disabled':''}>${ic('i-flame')}Seal vote</button></div>`;
+    else h+=`<div class="sealed-note">${ic('i-seal')}<span>Vote sealed${st.draft.x!=null?`: <b style="color:var(--text)">${nm(st.draft.x)}</b>`:' · abstain'}.</span></div><div class="sh-p">Votes reveal together.</div>`}
+  else if(p==='pyreReveal'){const L=st.lastBurn;const v=st.votes[r];const rows=Object.entries(L.tally).sort((a,b)=>b[1]-a[1]);const max=rows.length?rows[0][1]:1;
+    h+=`<div class="sh-k">${ic('i-flame')}Day ${r} · tally</div><div class="tally">${rows.map(([t,n],k)=>{const voters=Object.entries(v).filter(([,x])=>x===+t).map(([i])=>+i);
+      return `<div class="trow ${n===max?'top':''}">${mini(+t)}<span>${nm(+t)}</span><div class="tbar"><i style="width:${(n/max*100).toFixed(0)}%"></i></div><span class="n">${n}</span><div class="voters">${voters.map(i=>`<span title="${nm(i)}">${mini(i,'sm')}</span>`).join('')}${voters.map(i=>sealBtn(i,r,'vote',true)).slice(0,1).join('')}</div></div>`}).join('')}</div>`;
+    if(L.b!=null)h+=`<div class="verdict"><div class="vt">${esc(P[L.b].full||P[L.b].n)} burns.</div><div class="vd">The keeper reveals: ${rtag(P[L.b].role)}</div></div>`;
+    else h+=`<div class="verdict tie"><div class="vt">A tie. Nobody burns.</div><div class="vd">${L.tie.map(nm).join(' and ')} each drew ${max} votes.${L.tie.includes(YOU)?' That was close.':''}</div></div>`;
+    const ab=Object.entries(v).filter(([,x])=>x==null).map(([i])=>nm(+i));if(ab.length)h+=`<div class="sh-p" style="font-size:12px">Abstained: ${ab.join(', ')}</div>`}
+  S.innerHTML=h;
+}
+function peekHTML(){const s=SCRIPT[st.round];
+  if(peek==='wolves'){const pack=Object.keys(s.wolves).map(Number).filter(i=>st.alive[i]);
+    return `<div class="peek"><div class="pk">Peek · wolf channel (private to ${pack.map(nm).join(' + ')})</div>${s.wchat.filter(([i])=>st.alive[i]).map(([i,l])=>`<div class="wmsg">${mini(i,'sm')}<div><span class="who">${nm(i)}</span> ${esc(l)}</div><span class="pk2">picks ${nm(s.wolves[i])}</span></div>`).join('')}<div class="sh-p" style="font-size:12px">Your packmate's pick shows live. Picks are sealed to the keeper.</div></div>`}
+  if(peek==='healer'){if(!st.alive[6]||s.heal==null)return `<div class="peek"><div class="pk">Peek · healer view</div><div class="sh-p">The Healer is dead.</div></div>`;
+    return `<div class="peek"><div class="pk">Peek · Maud's healer view</div><div class="wmsg">${mini(6,'sm')}<div>Protects <b>${nm(s.heal)}</b> tonight</div><span class="pk2" style="color:var(--mo)">sealed</span></div><div class="sh-p" style="font-size:12px">Can't pick the same player two nights running.</div></div>`}
+  return''}
+function sealBtn(i,r,kind,tiny=false){return `<button class="sealbtn ${tiny?'tiny':''}" data-seal="${i}" data-r="${r}" data-k="${kind}" aria-label="Inspect signature">${ic('i-seal')}</button>`}
+function cardHTML(i,mv,r,k,C){const flag=C.flags[`${i}-${r}`];return `<div class="mcard ${i===YOU?'you':''} ${flag&&!flag.soft?'contra':''}" style="animation-delay:${k*90}ms">${mini(i)}<div><div class="who">${nm(i)}<span>${esc(P[i].t)}</span></div><div class="what">${moveText(mv)}</div>${mv.l?`<div class="line">“${esc(mv.l)}”</div>`:''}</div>${sealBtn(i,r,'move')}</div>`}
+
+/* contradictions: only from public info */
+function contradictions(){const out=[],flags={};const rev=st.ended?Object.fromEntries(P.map(p=>[p.id,p.role])):st.revealed;
+  const claims={seer:new Set(),healer:new Set()};
+  Object.entries(st.moves).forEach(([r,m])=>Object.entries(m).forEach(([i,mv])=>{i=+i;
+    if((mv.t==='claim'&&mv.role==='seer')||mv.t==='report')claims.seer.add(i);if(mv.t==='claim'&&mv.role==='healer')claims.healer.add(i)}));
+  ['seer','healer'].forEach(role=>{const s=[...claims[role]];if(s.length>1){out.push({t:`${s.map(nm).join(' and ')} both claim ${ROLE[role].n}. There is only one.`});
+    Object.entries(st.moves).forEach(([r,m])=>Object.entries(m).forEach(([i,mv])=>{if(s.includes(+i)&&((mv.t==='claim'&&mv.role===role)||(role==='seer'&&mv.t==='report')))flags[`${i}-${r}`]={t:`${s.length} players claim ${ROLE[role].n}`}}))}});
+  Object.entries(st.moves).forEach(([r,m])=>Object.entries(m).forEach(([i,mv])=>{i=+i;
+    if(mv.t==='report'&&rev[mv.x]&&(rev[mv.x]==='wolf')!==mv.w){out.push({t:`${nm(i)} saw ${nm(mv.x)}: ${mv.w?'WOLF':'not wolf'} (day ${r}). The keeper revealed ${nm(mv.x)} as ${ROLE[rev[mv.x]].n}.`});flags[`${i}-${r}`]={t:'Vision contradicted by a revealed role'}}
+    if(mv.t==='claim'&&rev[i]&&rev[i]!==mv.role){out.push({t:`${nm(i)} claimed ${ROLE[mv.role].n} (day ${r}). Revealed as ${ROLE[rev[i]].n}.`});flags[`${i}-${r}`]={t:'Claim contradicted by reveal'}}
+    if(mv.t==='vouch'&&rev[mv.x]==='wolf'&&!(rev[i]==='wolf')){out.push({t:`${nm(i)} vouched for ${nm(mv.x)} (day ${r}), a revealed wolf.`,soft:true});flags[`${i}-${r}`]={t:'Vouched for a revealed wolf',soft:true}}
+    if(mv.t==='vouch'&&rev[mv.x]==='wolf'&&rev[i]==='wolf'){out.push({t:`${nm(i)} vouched for packmate ${nm(mv.x)} (day ${r}).`,soft:true});flags[`${i}-${r}`]={t:'Vouched for a packmate',soft:true}}
+  }));
+  return{out,flags}}
+
+function renderRecord(){const B=$('#recBody');const C=contradictions();let h='';
+  if(st.recTab==='ledger'){
+    if(C.out.length)h+=`<div class="rhead">Contradictions</div><div class="contras">${C.out.map(c=>`<div class="contra-i ${c.soft?'soft':''}"><i></i><span>${esc(c.t)}</span></div>`).join('')}</div>`;
+    const rounds=[];for(let r=1;r<=st.round;r++)rounds.push(r);
+    h+=`<div class="rhead">Public ledger</div><table class="ledger"><thead><tr><th></th>${rounds.map(r=>`<th>DAY ${r}</th>`).join('')}</tr></thead><tbody>`;
+    P.forEach(p=>{const i=p.id;const rv=st.ended?p.role:st.revealed[i];
+      h+=`<tr class="${st.alive[i]?'':'dead'} ${i===YOU?'you':''}"><td><div class="pn">${mini(i,'sm')}${nm(i)}</div>${rv?`<div style="margin-top:3px">${rtag(rv,false).replace('class="rtag"','class="rtag" style="--rc:'+ROLE[rv].c+';font-size:9.5px;padding:1px 5px"')}</div>`:''}</td>`;
+      rounds.forEach(r=>{const m=st.moves[r]?.[i];const v=st.votes[r];const d=st.deaths.find(x=>x.i===i&&x.r===r);let c='';
+        if(d&&d.how==='night')c+=`<span class="dth">killed N${r}</span>`;
+        if(m){const f=C.flags[`${i}-${r}`];const t=moveText(m,true);c+=`<span class="m">${f?`<span class="flag ${f.soft?'soft':''}" title="${esc(f.t)}">${esc(t)}</span>`:esc(t)}</span>`}
+        if(v&&i in v)c+=v[i]!=null?`<span class="v">${ic('i-flame')} ${nm(v[i])}</span>`:`<span class="x">abstain</span>`;
+        if(d&&d.how==='pyre')c+=`<span class="dth">burned</span>`;
+        h+=`<td><div class="lc">${c||'<span class="x">·</span>'}</div></td>`});
+      h+=`</tr>`});
+    h+=`</tbody></table><div class="legend"><span><span class="lc"><span class="flag" style="display:inline">dotted</span></span> = contradicted</span><span>${ic('i-flame')} = pyre vote</span></div>`}
+  else{const rs=Object.keys(st.moves).map(Number).sort((a,b)=>b-a);if(!rs.length)h+=`<div class="quiet">No moves yet. The first council opens after dawn.</div>`;
+    rs.forEach(r=>{h+=`<div class="rhead">Day ${r}</div><div class="feed">${Object.entries(st.moves[r]).map(([i,mv])=>cardHTML(+i,mv,r,0,C)).join('')}</div>`})}
+  B.innerHTML=h}
+
+/* ---------------- popover ---------------- */
+const pop=$('#pop');let popFor=null;
+function popHTML(i,r,k){const ai=!P[i].human;const tag=`${k}|${i}|${r}`;const req=hx('req'+tag),res=hx('res'+tag),mh=hx('move'+tag);
+  const what=k==='vote'?`Pyre vote · Day ${r}`:`Council move · Day ${r}`;
+  if(!st.ended)return `<div class="ph"><span class="tic">${ic('i-seal')}</span>${what}</div><dl class="kv"><dt>Seat</dt><dd>${nm(i)}</dd><dt>Move hash</dt><dd>${sh(mh,10,8)}</dd><dt>Keeper</dt><dd>Nitro · PCR0 ${PCR0}</dd></dl>
+    <div class="ok-l">${ic('i-check')}Signature recovers to the seat key</div><div class="ok-l">${ic('i-check')}Sealed before reveal, accepted by keeper</div>
+    <div class="note">Model and inference attestation unseal when the game ends, so every seat stays anonymous until then.</div>`;
+  if(!ai)return `<div class="ph"><span class="tic">${ic('i-seal')}</span>${what}</div><dl class="kv"><dt>Seat</dt><dd>${nm(i)} · human</dd><dt>Session key</dt><dd>${sh(addr(i+40),8,6)}</dd><dt>Move hash</dt><dd>${sh(mh,10,8)}</dd></dl><div class="ok-l">${ic('i-check')}Signed by player session key, relayed by keeper</div>`;
+  return `<div class="ph"><span class="tic">${ic('i-chip')}</span>NEAR AI Cloud · private inference</div><dl class="kv"><dt>Seat</dt><dd>${nm(i)} · ${what}</dd><dt>Model</dt><dd>${MODEL}</dd><dt>Signing addr</dt><dd>${sh(addr(i),10,6)}</dd><dt>Request hash</dt><dd>${sh(req,12,8)}</dd><dt>Response hash</dt><dd>${sh(res,12,8)}</dd></dl>
+    <div class="ok-l">${ic('i-check')}Signature recovers to attested key</div><div class="ok-l">${ic('i-check')}Attestation: TDX + GPU, nonce fresh</div>
+    <div class="note"><a class="src" href="https://github.com/makeo-fun/nearwolf/blob/main/verify/nearai.ts#L42" target="_blank" rel="noopener">verify/nearai.ts#L42 ${ic('i-ext')}</a></div>`}
+function openPop(btn){const i=+btn.dataset.seal,r=+btn.dataset.r,k=btn.dataset.k;popFor=btn;pop.innerHTML=popHTML(i,r,k);pop.classList.add('on');
+  const b=btn.getBoundingClientRect();const w=pop.offsetWidth,h=pop.offsetHeight;let x=b.left+b.width/2-w/2,y=b.bottom+8;if(y+h>innerHeight-8)y=b.top-h-8;x=Math.max(12,Math.min(innerWidth-w-12,x));pop.style.left=x+'px';pop.style.top=Math.max(8,y)+'px'}
+function closePop(){pop.classList.remove('on');popFor=null}
+document.addEventListener('mouseover',e=>{const b=e.target.closest('[data-seal]');if(b&&matchMedia('(hover:hover)').matches)openPop(b);else if(popFor&&!e.target.closest('#pop')&&!e.target.closest('[data-seal]'))closePop()});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-seal]');if(b){e.stopPropagation();popFor===b&&pop.classList.contains('on')?closePop():openPop(b);return}if(!e.target.closest('#pop'))closePop()},true);
+
+/* ---------------- sheet events ---------------- */
+$('#sheet').addEventListener('click',e=>{const t=e.target;
+  const pk=t.closest('[data-pick]');if(pk){seatClick(+pk.dataset.pick);return}
+  const mv=t.closest('[data-mv]');if(mv){st.draft.t=mv.dataset.mv;if(!['report','accuse','vouch'].includes(st.draft.t)){st.draft.x=null;st.sel=null}renderAll();return}
+  const ro=t.closest('[data-role]');if(ro){st.draft.role=ro.dataset.role;renderSheet();return}
+  const w=t.closest('[data-w]');if(w){st.draft.w=w.dataset.w==='1';renderSheet();return}
+  if(t.closest('#abstain')){st.draft.x=null;st.sel=null;seal();return}
+  if(t.closest('#sealBtn')){seal();return}});
+$('#sheet').addEventListener('input',e=>{if(e.target.id==='lineIn')st.draft.l=e.target.value});
+$('#recTabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;st.recTab=b.dataset.t;$$('#recTabs button').forEach(x=>x.classList.toggle('on',x===b));renderRecord()});
+$('#recBtn').addEventListener('click',()=>{$('#record').classList.toggle('open');$('#recBtn').classList.toggle('ok')});
+$('#keeperChip').addEventListener('click',()=>toast(`Keeper: AWS Nitro enclave · PCR0 ${PCR0} · attestation verified in your browser`));
+
+/* ---------------- end ---------------- */
+function endGame(w){st.ended=true;st.winner=w;st.phase='end';closePop();updateSeats();renderRecord();moonBlood(false);document.documentElement.style.setProperty('--lum','1.5');document.body.dataset.sky='dawn';
+  const humans=P.filter(p=>p.human).length,ais=P.length-humans;
+  const E=$('#endov');E.innerHTML=`<div class="panel endcard">
+   <div class="ek">GAME OVER · 4 DAYS</div><div class="et">${w==='village'?'The village wins.':'The wolves win.'}</div>
+   <div class="ed">${w==='village'?'Corin was the last wolf, burned on the final vote. Hale, an AI wolf, claimed Seer and came within one vote of burning the real Seer: you.':'The wolves now equal the village.'}</div>
+   <div class="split"><span class="h">${humans} humans</span><span class="sep"></span><span class="a">${ais} AI actors</span></div>
+   <div class="roster">${P.map((p,k)=>`<div class="rcell" style="animation-delay:${k*70}ms"><span class="mini" style="--c:${p.c}"></span><div><div class="rn2">${p.you?'You (Ash)':esc(p.full||p.n)}</div><div class="rm">${rtag(p.role)}<span class="htag ${p.human?'h':'ai'}">${p.human?'Human':'AI · '+MODEL.split('/')[1]}</span></div></div></div>`).join('')}</div>
+   <div class="ebtns"><button class="btn" id="verifyBtn">${ic('i-seal')}Verify this game</button><button class="btn ghost" id="closeEnd">See the table</button><button class="btn ghost" id="againBtn">Play again</button></div></div>`;
+  E.classList.add('on');
+  $('#verifyBtn').onclick=()=>{E.classList.remove('on');openReceipt()};$('#closeEnd').onclick=()=>{E.classList.remove('on');setTimeout(()=>toast('Seals on AI moves now show full NEAR AI provenance.'),300)};$('#againBtn').onclick=restart;
+  $('#phK').textContent='Game over';$('#phT').textContent=w==='village'?'Village wins':'Wolves win';$('#phI').textContent='Roles and seats revealed.';$('#sealCount').textContent='';
+}
+
+/* ---------------- receipt ---------------- */
+async function openReceipt(){show('receipt');const re=await sha256(rolePayload());const ok=re===st.commit;
+  const txh=b58('tx-record-7q2f');const ais=P.filter(p=>!p.human);const src=(f,l)=>`<a class="src" href="https://github.com/makeo-fun/nearwolf/blob/main/verify/${f}#L${l}" target="_blank" rel="noopener">github.com/makeo-fun/nearwolf/blob/main/verify/${f}#L${l} ${ic('i-ext')}</a>`;
+  let nAIreq=0;
+  const aiBlock=p=>{const i=p.id;const rows=[];
+    for(let r=1;r<=4;r++){const s=SCRIPT[r];
+      if(p.role==='wolf'&&s.wolves[i]!=null&&deathRound(i)>=r)rows.push([`Night ${r}`,`Wolf pick → ${nm(s.wolves[i])}`,'night'+r]);
+      if(p.role==='healer'&&s.heal!=null&&deathRound(i)>=r)rows.push([`Night ${r}`,`Protect → ${nm(s.heal)}`,'night'+r]);
+      if(p.role==='villager'&&deathRound(i)>=r&&!(st.deaths.find(d=>d.i===i&&d.r===r&&d.how==='night')))rows.push([`Night ${r}`,'Quiet night (sealed no-op)','night'+r]);
+      const m=st.moves[r]?.[i];if(m)rows.push([`Day ${r}`,moveText(m,true)+(m.l?` · “${esc(m.l)}”`:''),'move'+r]);
+      const v=st.votes[r];if(v&&i in v)rows.push([`Pyre ${r}`,v[i]!=null?`Vote → ${nm(v[i])}`:'Abstain','vote'+r])}
+    nAIreq+=rows.length;
+    return `<details class="ai" ${i===5?'open':''}><summary>${mini(i)}<div><div class="an">${esc(p.full||p.n)} ${rtag(p.role)}</div><div class="am">${MODEL} · signer ${sh(addr(i),8,6)}</div></div><span class="ck-ok" style="margin-left:auto">${ic('i-check')}${rows.length}/${rows.length} signed</span><svg class="i chev"><use href="#i-chev"/></svg></summary>
+     <div class="body"><div class="lbl">Every move, signed inside the TEE</div><div class="aimoves">${rows.map(([w,t,k])=>`<div class="amv"><span class="when">${w}</span><span>${t}</span><span class="sig">sig ${sh(hx('res'+k+i),6,4)} ✓</span></div>`).join('')}</div>
+     <div class="lbl">Private reasoning, unsealed after the game</div><div class="reason">${(REASON[i]||[]).map(([w,t])=>`<div class="rsn"><b>${w}</b>${esc(t)}</div>`).join('')}</div>
+     <div>${src('nearai.ts',42)}</div></div></details>`};
+  const aiHTML=ais.map(aiBlock).join('');
+  $('#rwrap').innerHTML=`
+   <div class="rh"><div><div class="sh-k">${ic('i-seal')}Receipt · Room 7Q2F · 14 Nov 2026</div><h1>Verify this game</h1><p>Every check below re-runs in your browser against public data. Nothing here asks you to trust Makeo.</p></div><div class="allok">${ic('i-check')}5 of 5 checks pass</div></div>
+   <div class="panel check"><div class="ck-h"><div class="ck-n">1</div><div><div class="ck-t">Roles were fixed before anyone moved</div><div class="ck-d">The keeper committed to the shuffled roles at deal time. The reveal hashes back to the same commitment.</div></div><div class="ck-ok">${ic('i-check')}${ok?'matched':'MISMATCH'}</div></div>
+     <div class="hashbox"><span class="k">Committed at deal</span><span class="val">${st.commit}</span><span></span><span class="k">Recomputed now</span><span class="val">${re}</span><span class="g">${ok?'✓':'✗'}</span><span class="k">Reveal</span><span class="val" style="font-family:var(--body);font-size:12px">${P.map(p=>`${p.you?'Ash':p.n}: ${ROLE[p.role].n}`).join(' · ')} · salt ${sh(SALT,6,4)}</span><span></span></div>
+     <div>${src('commitment.ts',18)}</div></div>
+   <div class="panel check"><div class="ck-h"><div class="ck-n">2</div><div><div class="ck-t">Every AI move came from attested private inference</div><div class="ck-d">5 AI actors on NEAR AI Cloud (Intel TDX + NVIDIA confidential GPU). Each move's signature recovers to a key bound to a fresh attestation.</div></div><div class="ck-ok">${ic('i-check')}<span id="aiCount"></span> signed</div></div>
+     ${aiHTML}</div>
+   <div class="panel check"><div class="ck-h"><div class="ck-n">3</div><div><div class="ck-t">Each AI saw only its own sealed view</div><div class="ck-d">The keeper encrypts each private view to one seat's key. The keeper log shows no seat read another seat's view.</div></div><div class="ck-ok">${ic('i-check')}isolated</div></div>
+     <div style="display:grid;gap:5px">${ais.map(p=>`<div class="isorow">${mini(p.id,'sm')}<span>${esc(p.full||p.n)} · view sealed to <code>${sh(addr(p.id),8,4)}</code></span><span class="ck-ok">${ic('i-check')}0 foreign reads</span></div>`).join('')}</div>
+     <div>${src('keeper.ts',77)}</div></div>
+   <div class="panel check"><div class="ck-h"><div class="ck-n">4</div><div><div class="ck-t">The game is on NEAR</div><div class="ck-d"><code style="font-family:var(--mono)">record_game</code> on <code style="font-family:var(--mono)">nearwolf.testnet</code> stores the commitment, the move-log root and the result.</div></div><div class="ck-ok">${ic('i-check')}finalized</div></div>
+     <div class="hashbox"><span class="k">Tx hash</span><span class="val">${txh}</span><span class="g">✓</span><span class="k">Move-log root</span><span class="val">${hx('root7q2f',64)}</span><span class="g">✓</span><span class="k">Result</span><span class="val" style="font-family:var(--body)">village · 4 days · 9 seats</span><span></span></div>
+     <div class="txline"><a class="nearlink" href="https://testnet.nearblocks.io/txns/${txh}" target="_blank" rel="noopener">${ic('i-near')}testnet.nearblocks.io/txns/${sh(txh,8,6)} ${ic('i-ext')}</a>${src('near.ts',31)}</div></div>
+   <div class="panel check"><div class="ck-h"><div class="ck-n">5</div><div><div class="ck-t">The keeper is the code we published</div><div class="ck-d">AWS Nitro attestation document checked against the reproducible build's PCR0.</div></div><div class="ck-ok">${ic('i-check')}attested</div></div>
+     <div class="hashbox"><span class="k">PCR0</span><span class="val">3f9a${hx('pcr0',88)}c21e</span><span class="g">✓</span></div><div>${src('nitro.ts',55)}</div></div>
+   <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px"><button class="btn ghost" id="backTable">Back to the table</button><button class="btn" id="again2">Play again</button></div>`;
+  $('#aiCount').textContent=`${nAIreq}/${nAIreq}`;
+  $('#backTable').onclick=()=>{show('game');document.body.dataset.sky='dawn'};$('#again2').onclick=restart}
+function deathRound(i){const d=st.deaths.find(x=>x.i===i);return d?(d.how==='night'?d.r-1:d.r):99}
+
+/* ---------------- loop ---------------- */
+let last=performance.now();
+function frame(t){const dt=Math.min(.1,(t-last)/1000);last=t;
+  if(st.screen==='game'&&st.phase&&st.phase!=='end'){st.left-=dt*speed;
+    if(ACTION.includes(st.phase)){const el=st.dur-st.left;let ch=false;for(const k in st.sealAt){if(!st.sealed.has(+k)&&el>=st.sealAt[k]){st.sealed.add(+k);ch=true}}if(ch){updateSeats();if(st.mySeal&&aliveIds().every(i=>st.sealed.has(i)))st.left=Math.min(st.left,1.6)}}
+    if(st.left<=0){st.left=0;next()}
+    if(st.phase!=='end')updateClock()}
+  trackEyes();drawStars(t);
+  gx+=(px-gx)*.08;gy+=(py-gy)*.08;$('#glow').style.transform=`translate(${gx}px,${gy}px)`;
+  requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+
+/* ---------------- dev ---------------- */
+function skip(){closePop();
+  if(st.screen==='landing')return startLobby();
+  if(st.screen==='lobby'){st.fast=true;return}
+  if(st.screen==='reveal'){if(!$('#rcard').classList.contains('flip'))flipCard();else startGame();return}
+  if(st.screen==='game'&&st.phase&&st.phase!=='end'){if(ACTION.includes(st.phase)&&!st.mySeal&&st.alive[YOU])autoAct();if(st.phase==='night'){st.lookShown=true}st.left=0}
+  else if(st.screen==='game'&&st.phase==='end'){$('#endov').classList.remove('on');openReceipt()}}
+$('#dSkip').onclick=skip;
+$('#dSpeed').onclick=()=>{speed=speed===1?3:speed===3?10:1;$('#dSpeed').textContent=speed+'×';$('#dSpeed').classList.toggle('on',speed>1)};
+$('#dAuto').onclick=()=>{auto=!auto;$('#dAuto').classList.toggle('on',auto);toast(auto?'Autopilot on: your seat plays the demo line.':'Autopilot off: your seat waits for you.');if(auto&&st.screen==='game'&&ACTION.includes(st.phase)&&!st.mySeal)autoAct()};
+$('#dPeek').onclick=()=>{peek=peek==='off'?'wolves':peek==='wolves'?'healer':'off';$('#dPeek').textContent='peek: '+peek;$('#dPeek').classList.toggle('on',peek!=='off');if(st.screen==='game'&&st.phase==='night')renderSheet();else if(peek!=='off')toast('Peek shows on the next night.')};
+function restart(){const keep=speed;st=fresh();$('#endov').classList.remove('on');$('#lineG').innerHTML='';moonBlood(false);document.documentElement.style.setProperty('--lum','.8');document.body.dataset.sky='night';document.body.dataset.phase='';$$('#recTabs button').forEach((x,k)=>x.classList.toggle('on',k===0));show('landing')}
+$('#dReset').onclick=restart;
+addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;if(e.key==='ArrowRight'||e.key==='n')skip()});
+
+/* deep link for screenshots: #jump=<round>:<phase> | #jump=end | #jump=receipt | #jump=reveal | #jump=lobby */
+async function jump(spec){speed=1;
+  if(/static/.test(location.hash)){const s=document.createElement('style');s.textContent='*,*::before,*::after{transition:none!important;animation-duration:0s!important;animation-delay:0s!important;animation-iteration-count:1!important}';document.head.appendChild(s)}if(spec==='lobby'){startLobby();return}
+  st.commit=await sha256(rolePayload());if(spec==='reveal'){startReveal();setTimeout(flipCard,300);return}
+  show('game');buildSeats();enter('night');
+  const [tr,tp]=spec==='end'||spec==='receipt'?[99,'end']:spec.split(':');const R=+tr;
+  let guard=0;while(guard++<60){if(st.phase==='end')break;if(st.round===R&&st.phase===tp)break;if(ACTION.includes(st.phase)&&!st.mySeal)autoAct();if(st.phase==='night')st.lookShown=true;next()}
+  if(/act/.test(location.hash)&&ACTION.includes(st.phase)&&!st.mySeal){autoAct();aliveIds().forEach(i=>{if(Math.random()<.8)st.sealed.add(i)})}
+  if(st.phase==='night'&&st.mySeal)st.lookShown=true;
+  renderAll();if(st.phase==='councilReveal')drawCouncil();if(st.phase==='pyreReveal')drawVotes();
+  if(spec==='receipt'){$('#endov').classList.remove('on');openReceipt()}
+  if(/hold/.test(location.hash))speed=0}
+const m=location.hash.match(/jump=([\w:]+)/);if(m)jump(m[1]);
+})();
+</script>
+</body>
+</html>
