@@ -23,9 +23,10 @@ started=$(date +%s)
 check() { # check "<name>" <command...>: runs it, records PASS/FAIL, keeps its output in $LOG
   local name=$1; shift
   local t0=$(date +%s) out="$LOG/$(echo "$name" | tr -c 'a-zA-Z0-9' '_').log"
-  if "$@" >"$out" 2>&1; then RESULTS+=("PASS|$name|$(( $(date +%s) - t0 ))s")
-  else RESULTS+=("FAIL|$name|$(( $(date +%s) - t0 ))s  (see $out)"); fi
-  printf '  %-4s %s\n' "${RESULTS[-1]%%|*}" "$name"
+  local status=PASS
+  "$@" >"$out" 2>&1 || status=FAIL
+  if [ $status = PASS ]; then RESULTS+=("PASS|$name|$(( $(date +%s) - t0 ))s"); else RESULTS+=("FAIL|$name|$(( $(date +%s) - t0 ))s  (see $out)"); fi
+  printf '  %-4s %s\n' "$status" "$name"
 }
 
 echo "== installing (bun)"
