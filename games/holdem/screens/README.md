@@ -50,3 +50,5 @@ played a live free match with the NEAR AI seat Vega and the platform's test seat
 | glass-live-allin.jpg | A three-way all-in, pot 207 |
 | glass-live-flop.jpg | The next hand: "THE FLOP · from the vault", your 5♣ 4♥ |
 | glass-live-next-hand.jpg | After winning the all-in (205 chips), probe out, Vega on 91 |
+
+human-ai-noir-receipts.json: receipts from the live noir game with a human in Chrome and NEAR AI seats Vega and Rook (92 AI decisions: 90 verified, 2 scripted fallbacks).
