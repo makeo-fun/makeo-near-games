@@ -5,6 +5,10 @@
 export type Card = number; // suit * 13 + rank; rank 0 = two .. 12 = ace; suit 0 c, 1 d, 2 h, 3 s
 export type Street = "Preflop" | "Flop" | "Turn" | "River" | "Showdown" | "Folded";
 export type Did = { act: string; to: number };
+/** One action of the hand: hand player `p` did `act` on `street`, leaving their street bet at `to`. */
+export type Logged = { p: number; street: Street; act: string; to: number };
+/** What everyone saw of a finished hand; `shown` is [seat, cards, name] for each hand shown down. */
+export type HandSummary = { hand: number; board: Card[]; shown: [number, [Card, Card], string][]; deltas: number[]; winners: number[] };
 export type Pot = { amount: number; eligible: number[]; winners: number[] };
 export type Showdown = { shown: boolean[]; names: (string | null)[]; best: (Card[] | null)[]; pots: Pot[] };
 export type Opening = { card: Card; salt: string };
@@ -21,6 +25,7 @@ export type SitGoView = {
   hand: HandView | null;
   next_deal_ms: number;
   busted: (number | null)[];
+  history?: HandSummary[];
   blinds: [number, number];
   next_blinds: [number, number];
   hands_per_level: number;
@@ -51,6 +56,7 @@ export type HandView = {
   folded: boolean[];
   all_in: boolean[];
   last: (Did | null)[];
+  actions?: Logged[];
   pot: number;
   current_bet: number;
   min_raise: number;
@@ -254,6 +260,52 @@ export function scriptedMove(hand: HandView, me: number, rng: () => number, styl
 const streetWords: Record<Street, string> = { Preflop: "preflop", Flop: "the flop", Turn: "the turn", River: "the river", Showdown: "showdown", Folded: "over" };
 
 /** The situation in words, from `me`'s own view only: their two cards, the public board and the betting. */
+/** The sit-and-go around the hand, when the view has one. */
+export function sitGoOf(view: unknown): SitGoView | null {
+  const v = view as any;
+  if (v?.game && Array.isArray(v.game.chips)) return v.game as SitGoView;
+  if (Array.isArray(v?.chips) && Array.isArray(v?.seats)) return v as SitGoView;
+  return null;
+}
+
+const actWord = (a: Logged) => {
+  switch (a.act) {
+    case "check": return "checks";
+    case "call": return `calls ${a.to}`;
+    case "bet": return `bets ${a.to}`;
+    case "raise": return `raises to ${a.to}`;
+    case "all in": return `all in to ${a.to}`;
+    case "fold": return "folds";
+    default: return `${a.act} ${a.to}`;
+  }
+};
+
+/** Every action of the hand so far, one line per street, with the board cards each street showed. */
+export function describeActions(hand: HandView, names: (i: number) => string): string[] {
+  const actions = hand.actions ?? [];
+  const streets: Street[] = ["Preflop", "Flop", "Turn", "River"];
+  const board = (st: Street) => (st === "Flop" ? hand.board.slice(0, 3) : st === "Turn" ? hand.board.slice(3, 4) : st === "River" ? hand.board.slice(4, 5) : []);
+  const lines: string[] = [];
+  for (const st of streets) {
+    const here = actions.filter((a) => a.street === st);
+    const cards = board(st);
+    if (!here.length && !(cards.length && st !== "Preflop")) continue;
+    const head = st === "Preflop" ? "Preflop" : `${st} ${cards.map(cardName).join(" ")}`;
+    lines.push(`${head}: ${here.map((a) => `${names(a.p)} ${actWord(a)}`).join("; ") || "no action yet"}`);
+  }
+  return lines;
+}
+
+/** Earlier hands, compactly: board, shown hands, chip changes. Only what everyone saw. */
+export function describeHistory(history: HandSummary[], seatName: (seat: number) => string, max = 6): string[] {
+  return history.slice(-max).map((h) => {
+    const won = h.winners.map((w) => `${seatName(w)} +${h.deltas[w]}`).join(", ");
+    const lost = h.deltas.map((d, s) => (d < 0 ? `${seatName(s)} ${d}` : "")).filter(Boolean).join(", ");
+    const shown = h.shown.map(([seat, cards, name]) => `${seatName(seat)} ${cards.map(cardName).join(" ")} (${name})`).join("; ");
+    return `Hand ${h.hand}: ${h.board.length ? `board ${h.board.map(cardName).join(" ")}; ` : "no flop; "}${shown ? `shown: ${shown}; ` : "no showdown; "}won: ${won || "-"}${lost ? `; lost: ${lost}` : ""}`;
+  });
+}
+
 export function describeSituation(hand: HandView, me: number, names: (i: number) => string = (i) => `Seat ${i + 1}`): string {
   const n = hand.players.length;
   const hole = hand.hole[me];

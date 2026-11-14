@@ -5,8 +5,11 @@
 import type { GameActor, Persona, Prompt } from "../../actors/src/types";
 import { personaPreamble } from "../../actors/src/personas";
 import {
+  describeActions,
+  describeHistory,
   describeSituation,
   handOf,
+  sitGoOf,
   isBetting,
   legalMoves as legalFor,
   moveWords,
@@ -101,26 +104,38 @@ export function round(view: SeatView): number {
 export function prompt(view: SeatView, publicLog: HoldemEvent[], who: Persona): Prompt {
   const s = situation(view);
   const legal = s ? legalFor(s.hand, s.me) : [];
-  const names = (i: number) => (s && i === s.me ? `${who.name} (you)` : `Seat ${i + 1}`);
-  const recent = publicLog
-    .slice(-12)
-    .map((e) => (typeof e === "string" ? e : e.text ?? JSON.stringify(e)))
-    .filter(Boolean);
+  const g = sitGoOf(view);
+  // Players are named by their table seat (stable across hands); this seat is "you".
+  const seatOfPlayer = (i: number) => (g ? g.seats[i] ?? i : i);
+  const mySeat = s ? seatOfPlayer(s.me) : -1;
+  const seatName = (seat: number) => (seat === mySeat ? `${who.name} (you)` : `Seat ${seat + 1}`);
+  const names = (i: number) => seatName(seatOfPlayer(i));
+  const parts: string[] = [];
+  if (g) {
+    const stacks = g.players.map((_, seat) => `${seatName(seat)} ${g.chips[seat]}${g.chips[seat] === 0 && g.busted[seat] ? " (out)" : ""}`).join(", ");
+    parts.push(`Sit-and-go, hand ${g.hands} of up to ${g.max_hands}; blinds ${g.blinds[0]}/${g.blinds[1]} (next ${g.next_blinds[0]}/${g.next_blinds[1]}). Stacks at the start of this hand: ${stacks}.`);
+  }
+  if (s) {
+    parts.push(describeSituation(s.hand, s.me, names));
+    const acts = describeActions(s.hand, names);
+    if (acts.length) parts.push(`This hand so far:\n${acts.join("\n")}`);
+  } else parts.push("The hand is not in play.");
+  const history = g?.history ?? [];
+  if (history.length) parts.push(`Earlier hands (oldest first):\n${describeHistory(history, seatName).join("\n")}`);
+  // A runner without the sit-and-go view still passes its own public log.
+  if (!g && publicLog.length) {
+    const recent = publicLog.slice(-12).map((e) => (typeof e === "string" ? e : e.text ?? JSON.stringify(e))).filter(Boolean);
+    if (recent.length) parts.push(`Recent table log:\n${recent.map((l) => `- ${l}`).join("\n")}`);
+  }
+  parts.push(`Legal moves (pick one):\n${legal.map((m) => `- ${JSON.stringify(m)}  (${s ? moveWords(m, s.hand) : m.move})`).join("\n") || "- none"}`);
   const system = [
     personaPreamble(who, "No-Limit Texas Hold'em"),
     "Rules: standard No-Limit Hold'em. A raise names the TOTAL you put in on this street (raise to), not the amount added.",
-    "You only know your own two cards and the public board. Never claim to know anyone else's cards.",
+    "You only know your own two cards, the public board, the betting and the hands shown down. Never claim to know anyone else's cards.",
     'Your "say" line must match the move you make (do not say "all in" unless your move is all in).',
     'The "move" field must be exactly one of the legal moves listed, copied as JSON, e.g. {"move":"call"} or {"move":"raise","to":12}.',
   ].join("\n");
-  const user = [
-    s ? describeSituation(s.hand, s.me, names) : "The hand is not in play.",
-    recent.length ? `Recent table log:\n${recent.map((l) => `- ${l}`).join("\n")}` : "",
-    `Legal moves (pick one):\n${legal.map((m) => `- ${JSON.stringify(m)}  (${s ? moveWords(m, s.hand) : m.move})`).join("\n") || "- none"}`,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-  return { system, user };
+  return { system, user: parts.join("\n\n") };
 }
 
 /** The model's JSON (`{"move": ..., "reasoning", "say"}`) into one of `legal`, or null. */

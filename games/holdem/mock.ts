@@ -5,7 +5,7 @@
 // run by Makeo's keeper; nothing here decides a paid hand.
 import { createHash } from "node:crypto";
 import type { MockGame } from "../../actors/src/mock-room";
-import type { Card, Did, HandView, Move, Pot, Street } from "./shared/holdem";
+import type { Card, Did, HandSummary, HandView, Logged, Move, Pot, Street } from "./shared/holdem";
 import { cardName } from "./shared/holdem";
 
 const SB = 1;
@@ -23,10 +23,10 @@ type H = {
   holeCommits: [string, string][]; boardCommits: string[];
   street: Street; dealt: number;
   committed: number[]; streetBet: number[]; folded: boolean[]; toAct: boolean[]; raiseOpen: boolean[];
-  currentBet: number; minRaise: number; last: (Did | null)[]; turn: number | null; seq: number;
+  currentBet: number; minRaise: number; last: (Did | null)[]; actions: Logged[]; turn: number | null; seq: number;
   showdown: HandView["showdown"]; won: number[] | null; result: number[] | null;
 };
-type State = { seats: Seat[]; stacks: number[]; button: number; hands: number; hand: H | null; log: string[]; ended?: H | null };
+type State = { seats: Seat[]; stacks: number[]; button: number; hands: number; hand: H | null; log: string[]; ended?: H | null; history: HandSummary[] };
 
 const commit = (card: Card, salt: string) => "0x" + createHash("sha256").update(JSON.stringify({ domain: DOMAIN, value: { card, salt } })).digest("hex");
 const salt = (r: () => number) => Array.from({ length: 32 }, () => Math.floor(r() * 16).toString(16)).join("");
@@ -184,12 +184,14 @@ function deal(state: State, random: () => number): H | null {
     hole, board, holeSalts, boardSalts,
     holeCommits: hole.map((c, i) => [commit(c[0], holeSalts[i][0]), commit(c[1], holeSalts[i][1])]), boardCommits: board.map((c, k) => commit(c, boardSalts[k])),
     street: "Preflop", dealt: 0, committed: Array(n).fill(0), streetBet: Array(n).fill(0), folded: Array(n).fill(false), toAct: Array(n).fill(false),
-    raiseOpen: Array(n).fill(true), currentBet: BB, minRaise: BB, last: Array(n).fill(null), turn: null, seq: 0, showdown: null, won: null, result: null,
+    raiseOpen: Array(n).fill(true), currentBet: BB, minRaise: BB, last: Array(n).fill(null), actions: [], turn: null, seq: 0, showdown: null, won: null, result: null,
   };
   put(h, sb, SB);
   h.last[sb] = { act: "small blind", to: h.streetBet[sb] };
+  h.actions.push({ p: sb, street: "Preflop", act: "small blind", to: h.streetBet[sb] });
   put(h, bb, BB);
   h.last[bb] = { act: "big blind", to: h.streetBet[bb] };
+  h.actions.push({ p: bb, street: "Preflop", act: "big blind", to: h.streetBet[bb] });
   h.toAct = h.players.map((_, i) => canAct(h, i));
   progress(h, bb);
   return h;
@@ -231,6 +233,7 @@ function act(h: H, p: number, move: Move): H {
   n.toAct[p] = false;
   n.raiseOpen[p] = false;
   n.last[p] = { act: word, to: n.streetBet[p] };
+  n.actions.push({ p, street: h.street, act: word, to: n.streetBet[p] });
   n.seq += 1;
   progress(n, p);
   return n;
@@ -248,7 +251,7 @@ export function viewOf(h: H, viewer: number | null): HandView {
     commitments: { domain: DOMAIN, hole: h.holeCommits, board: h.boardCommits },
     openings: { hole: h.hole.map((c, i) => (vis(i) ? c.map((card, j) => ({ card, salt: h.holeSalts[i][j] })) : null)), board: h.board.slice(0, h.dealt).map((card, k) => ({ card, salt: h.boardSalts[k] })) },
     committed: h.committed, street_bet: h.streetBet, left: h.players.map((_, i) => left(h, i)), folded: h.folded,
-    all_in: h.players.map((_, i) => !h.folded[i] && left(h, i) === 0), last: h.last, pot: h.committed.reduce((a, b) => a + b, 0),
+    all_in: h.players.map((_, i) => !h.folded[i] && left(h, i) === 0), last: h.last, actions: h.actions, pot: h.committed.reduce((a, b) => a + b, 0),
     current_bet: h.currentBet, min_raise: h.minRaise, turn: t, deadline_ms: 0,
     options: t === null ? null : { player: t, check: h.currentBet <= h.streetBet[t], call: Math.min(Math.max(0, h.currentBet - h.streetBet[t]), left(h, t)), raise: r ? { min_to: r[0], max_to: r[1] } : null, allin: left(h, t) },
     showdown: h.showdown, won: h.won, result: h.result, seq: h.seq,
@@ -268,6 +271,15 @@ function endHand(state: State, random: () => number): State {
     h.showdown.pots.forEach((p) => s.log.push(`Hand ${h.id}: ${p.winners.map(names).join(" and ")} win ${p.amount}`));
   } else s.log.push(`Hand ${h.id}: ${names(h.won!.findIndex((w, i) => w > 0 && !h.folded[i]))} takes ${h.committed.reduce((a, b) => a + b, 0)} unshown`);
   s.ended = h;
+  const seatOf = (i: number) => s.seats.findIndex((x) => x.wallet === h.players[i].wallet);
+  const deltas = s.seats.map(() => 0);
+  h.result!.forEach((d, i) => (deltas[seatOf(i)] = d));
+  s.history.push({
+    hand: h.id, board: h.board.slice(0, h.dealt), deltas,
+    shown: h.showdown ? h.players.map((_, i) => i).filter((i) => h.showdown!.shown[i]).map((i) => [seatOf(i), h.hole[i], h.showdown!.names[i] ?? ""] as [number, [Card, Card], string]) : [],
+    winners: h.result!.map((d, i) => (d > 0 ? seatOf(i) : -1)).filter((x) => x >= 0),
+  });
+  if (s.history.length > 8) s.history.shift();
   s.hands += 1;
   s.button += 1;
   s.hand = s.hands < HANDS ? deal(s, random) : null;
@@ -277,7 +289,7 @@ function endHand(state: State, random: () => number): State {
 export const mockGame: MockGame<State, Move> = {
   seats: Number(process.env.HOLDEM_SEATS ?? 4),
   setup(seats, random) {
-    const s: State = { seats, stacks: seats.map(() => BUYIN), button: 0, hands: 0, hand: null, log: [`${seats.length} players sit down with ${BUYIN} chips each. Blinds ${SB}/${BB}.`] };
+    const s: State = { seats, stacks: seats.map(() => BUYIN), button: 0, hands: 0, hand: null, log: [`${seats.length} players sit down with ${BUYIN} chips each. Blinds ${SB}/${BB}.`], history: [] };
     s.hand = deal(s, random);
     return s;
   },
@@ -285,7 +297,15 @@ export const mockGame: MockGame<State, Move> = {
     const h = state.hand;
     if (!h) return { seats: state.seats, stacks: state.stacks, hand: null, wallet };
     const i = h.players.findIndex((p) => p.wallet === wallet.toLowerCase());
-    return { wallet, seats: state.seats, stacks: state.stacks, hand: { id: h.id, actor: h.turn !== null ? h.players[h.turn].wallet : null, players: h.players, game: viewOf(h, i >= 0 ? i : null) } };
+    const game = viewOf(h, i >= 0 ? i : null);
+    // The sit-and-go around it, shaped like the rules' view (rules/src/sitgo.rs).
+    const sitgo = {
+      players: state.seats.map((x) => x.wallet), chips: state.stacks, hands: h.id, max_hands: HANDS, button: 0,
+      seats: h.players.map((p) => state.seats.findIndex((x) => x.wallet === p.wallet)), hand: game, next_deal_ms: 0,
+      busted: state.stacks.map((c) => (c === 0 ? 1 : null)), history: state.history, blinds: [SB, BB], next_blinds: [SB, BB],
+      hands_per_level: HANDS, finished: false, winners: [], shares: [], seq: h.seq,
+    };
+    return { wallet, seats: state.seats, stacks: state.stacks, hand: { id: h.id, actor: h.turn !== null ? h.players[h.turn].wallet : null, players: h.players, game }, game: sitgo };
   },
   publicLog(state) {
     const h = state.hand;
