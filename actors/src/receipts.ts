@@ -8,6 +8,10 @@ export class ReceiptStore {
   private receipts: Receipt[] = [];
   private evidence = new Map<string, Evidence>();
   private finished = false;
+  private attestation: unknown = null;
+
+  /** The NEAR AI attestation evidence (nonce + raw report + checks) the receipts' signers were matched to. */
+  setAttestation(attestation: unknown) { this.attestation = attestation; }
 
   constructor(private readonly dir?: string) {}
 
@@ -30,7 +34,7 @@ export class ReceiptStore {
     if (!this.dir) return null;
     mkdirSync(this.dir, { recursive: true });
     const file = join(this.dir, `${safe(instance)}.receipts.json`);
-    writeFileSync(file, JSON.stringify({ instance, published_at_ms: Date.now(), receipts: this.receipts, evidence: [...this.evidence.values()] }, null, 2));
+    writeFileSync(file, JSON.stringify({ instance, published_at_ms: Date.now(), receipts: this.receipts, evidence: [...this.evidence.values()], ...(this.attestation ? { attestation: this.attestation } : {}) }, null, 2));
     return file;
   }
 

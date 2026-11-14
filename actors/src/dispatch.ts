@@ -126,6 +126,7 @@ Bun.serve({
       const personas = pickPersonas(ai, g.actor.persona?.length ? g.actor.persona : undefined);
       const r: Room = { game: String(body.game), room, wanted: ai, seats: [], receipts: new ReceiptStore(resolve(import.meta.dir, "../receipts")), finished: false, startedAt: now, stop: () => {} };
       rooms.set(room, r);
+      verify?.attestation().then((a) => r.receipts.setAttestation(a)).catch(() => undefined);
       log(`[${room.slice(0, 8)}] seating ${ai} NEAR AI for ${r.game}`);
       void runRoom(r, g.actor, g.project).catch((e) => log(`[${room.slice(0, 8)}] failed: ${(e as Error).message}`));
       return json({ ok: true, room, seats: personas.map((p) => ({ name: p.name, model })), statusUrl: `/status?room=${room}` });

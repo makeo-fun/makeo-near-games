@@ -59,6 +59,7 @@ const verify = inference && process.env.NEAR_AI_API_KEY ? createNearAiVerifier({
 console.log(inference ? `AI: NEAR AI Cloud, ${inference.model} (verified)` : "AI: scripted");
 const log = (line: string) => console.log(line);
 const receipts = new ReceiptStore(resolve(import.meta.dir, "../receipts"));
+verify?.attestation().then((a) => receipts.setAttestation(a)).catch(() => undefined);
 const personas = pickPersonas(ai, actor.persona?.length ? actor.persona : undefined);
 const transports: MakeoTransport[] = [];
 const testHumans: Array<{ label: string; seat: string; payout: string | null; entered: unknown }> = [];
