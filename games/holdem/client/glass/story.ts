@@ -1,5 +1,5 @@
 // @ts-nocheck
-// Copied from games/holdem/ui2/story.js (snapshot 20:19Z): the HoldemView contract and the mock adapter.
+// Copied from games/holdem/ui2/story.js (snapshot 20:32Z): the HoldemView contract and the mock adapter.
 /* NEAR HOLD'EM — state interface + mock adapter (one scripted hand).
  *
  * The UI is driven only by a HoldemView. To plug in real Makeo state (games/holdem/client, games/holdem/shared),

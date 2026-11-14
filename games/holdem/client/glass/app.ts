@@ -1,5 +1,5 @@
 // @ts-nocheck
-// Copied from games/holdem/ui2/app.js (Zero-G Glass Casino, Fable session snapshot 20:19Z); LIVE marks the changes.
+// Copied from games/holdem/ui2/app.js (Zero-G Glass Casino, Fable session snapshot 20:32Z); LIVE marks the changes.
 /* NEAR HOLD'EM · Zero-G Glass Casino — timeline engine, 3D table, all screens.
  * Everything on screen is a pure function of one timeline time t (ms): render(t). No Math.random, no wall clock in the picture.
  *   play mode:      index.html            (mock adapter unless window.HOLDEM_BOOT.adapter is set)
@@ -47,8 +47,8 @@ let joinT, stackK, betK, tagK, actK, stampK;
 const short = (id) => (idx[id] === ME ? 'YOU' : esc((SEATS[idx[id]] || { name: id }).name).toUpperCase());
 let AX = 4.3, AZ = 3.0, PORT = false;                       // table half-axes (swapped on portrait screens)
 const ang = (i) => { const k = (i - ME + N) % N; return k === 0 ? PI / 2 : N < 3 ? 1.5 * PI : PI / 2 + 2 * PI * (.19 + (.62 * (k - 1)) / (N - 2)); };
-const rp = (i, f, lat) => { const a = ang(i), l = lat || 0; return [Math.cos(a) * (AX + 1.05) * f - Math.sin(a) * l, Math.sin(a) * (AZ + 1.0) * f + Math.cos(a) * l]; };
-const ORB = () => [0, .62, -.25], VAULT = () => [0, 1.5, PORT ? -1.6 : -1.15];
+const rp = (i, f, lat) => { const a = ang(i), l = lat || 0; return [Math.cos(a) * (AX + (PORT ? .5 : 1.05)) * f - Math.sin(a) * l, Math.sin(a) * (AZ + 1.0) * f + Math.cos(a) * l]; };
+const ORB = () => [0, .62, PORT ? -1.0 : -.62], VAULT = () => [0, 1.6, PORT ? -2.3 : -1.55], BZ = () => (PORT ? .6 : .55), BS = () => (PORT ? .74 : 1);
 
 // ---------- timeline ----------
 const clips = [], scenes = [], tracks = {}, camKeys = [], pulses = [], hands = [], chipsRec = [];
@@ -66,13 +66,13 @@ const pulse = (t, kind, p) => pulses.push({ t, kind, p: p || [0, 0, 0] });
 
 // camera: orbit rig. pose = {az, el, d, l:[x,y,z]}
 const POSE = {
-  table: (az) => ({ az: az || 0, el: .62, d: 12.4, l: [0, .3, .35] }),
-  wide: (az) => ({ az: az || 0, el: .34, d: 17, l: [0, 1.2, 0] }),
+  table: (az) => ({ az: az || 0, el: .7, d: 12.6, l: [0, .2, .1] }),
+  wide: (az) => ({ az: az || 0, el: .42, d: 16, l: [0, .8, 0] }),
   high: (az) => ({ az: az || 0, el: 1.05, d: 16, l: [0, 0, 0] }),
-  vault: (az) => ({ az: az || 0, el: .42, d: 8.2, l: [0, 1.0, -.5] }),
-  board: (az) => ({ az: az || 0, el: .78, d: 8.6, l: [0, .3, .5] }),
-  mine: () => ({ az: 0, el: .7, d: 8.2, l: [0, .5, 1.5] }),
-  seat: (i) => { const a = ang(i), x = Math.cos(a), z = Math.sin(a); return { az: Math.atan2(x, z) * -.35 + (x > 0 ? -.25 : .25) * (z < .5 ? 1 : 0), el: .5, d: 10.2, l: [x * AX * .45, .7, z * AZ * .45] }; },
+  vault: (az) => ({ az: az || 0, el: .5, d: 10, l: [0, .9, -.6] }),
+  board: (az) => ({ az: az || 0, el: .82, d: 11.2, l: [0, .2, .2] }),
+  mine: () => ({ az: 0, el: .78, d: 10.6, l: [0, .3, .7] }),
+  seat: (i) => { const a = ang(i), x = Math.cos(a), z = Math.sin(a); return { az: i === ME ? 0 : (x > .2 ? .2 : x < -.2 ? -.2 : .08), el: .66, d: 12, l: [x * AX * .16, .3, z * AZ * .12] }; },
 };
 function camTo(t0, dur, pose) { const last = camKeys[camKeys.length - 1]; if (last && t0 < last.t1) t0 = last.t1; camKeys.push({ t0, t1: t0 + dur, pose }); }
 function camAt(t) {
@@ -89,15 +89,15 @@ function kinetic(start, dur, lines, o) {
   const ls = [...el.children], stg = o.stagger || 140;
   add(start, start + dur, (p, t, lt) => {
     ls.forEach((l, k) => {
-      const a = spr((lt - k * stg) / 700), out = sat((dur - lt) / 380);
-      l.style.opacity = sat((lt - k * stg) / 260) * out;
-      l.style.transform = 'translateY(' + ((1 - a) * 46 - (1 - out) * 24).toFixed(1) + 'px) scale(' + (o.slam && k === (o.slamLine || 1) ? (1 + (1 - sat((lt - k * stg) / 420)) * .5) : .96 + a * .04).toFixed(3) + ')';
+      const out = sat((dur - lt) / 500);
+      l.style.opacity = sat((lt - k * stg) / 500) * out;
+      l.style.transform = 'translateY(' + ((1 - eo((lt - k * stg) / 700)) * 14 - (1 - out) * 8).toFixed(1) + 'px)';
     });
   }, el);
 }
 function cap(start, dur, html, cls) {
   const el = h('cap glass ' + (cls || ''), html);
-  add(start, start + dur, (p, t, lt) => { const a = spr(lt / 650), o = sat((dur - lt) / 320); el.style.opacity = sat(lt / 220) * o; el.style.transform = 'translate(-50%,' + ((1 - a) * 40 + (1 - o) * 16).toFixed(1) + 'px)'; }, el);
+  add(start, start + dur, (p, t, lt) => { const a = eo(lt / 600), o = sat((dur - lt) / 450); el.style.opacity = sat(lt / 400) * o; el.style.transform = 'translate(-50%,' + ((1 - a) * 12).toFixed(1) + 'px)'; }, el);
   return el;
 }
 function tagText(ev) {
@@ -106,10 +106,10 @@ function tagText(ev) {
 }
 function tipHTML(rc) {
   const row = (k, v) => (v ? '<div><u>' + k + '</u>' + esc(v) + '</div>' : '');
-  return '<div class="tip">' + row('model', rc.model || rc.model_id) + row('signer', sh(rc.signing_address, 12)) + row('request', sh(rc.request_sha256, 14)) + row('response', sh(rc.response_sha256, 14)) + row('signature', sh(rc.signature, 14)) + row('chat', rc.chat_id)
+  return '<div class="tip">' + '<div><b>signed in NEAR AI TEE</b></div>' + row('model', rc.model || rc.model_id) + row('signer', sh(rc.signing_address, 12)) + row('request', sh(rc.request_sha256, 14)) + row('response', sh(rc.response_sha256, 14)) + row('signature', sh(rc.signature, 14)) + row('chat', rc.chat_id)
     + (rc.verified === true ? '<div><u>attested</u><b>Intel TDX + NVIDIA ✓</b></div>' : '') + '</div>';
 }
-const stampHTML = (rc, show) => '<span class="stamp' + (show ? ' show' : '') + '">signed in NEAR AI TEE' + (rc.verified === true ? ' ✓' : '') + tipHTML(rc) + '</span>';
+const stampHTML = (rc, show) => '<span class="stamp' + (show ? ' show' : '') + '">' + (rc.verified === true ? '✓ ' : '') + 'TEE' + tipHTML(rc) + '</span>';
 
 // ---------- pickers (your decisions) ----------
 function buildPick(pd, auto) {
@@ -127,7 +127,7 @@ function buildPick(pd, auto) {
     el = h('dock glass', '<div class="info"><span>YOUR ACTION · ' + esc(String(pd.street || '').toUpperCase()) + '</span><span>POT <b>' + pd.pot + '</b> &nbsp; TO CALL <b>' + toCall + '</b> &nbsp; STACK <b>' + pd.stack + '</b></span></div><div class="row">'
       + '<button class="gbtn fold" data-k="fold">FOLD</button>'
       + (canCheck ? '<button class="gbtn call" data-k="check">CHECK</button>' : '<button class="gbtn call" data-k="call">CALL<small>' + Math.min(toCall, pd.stack) + '</small></button>')
-      + (canRaise && pd.minTo < pd.maxTo ? '<div class="rz"><input type="range" min="' + pd.minTo + '" max="' + pd.maxTo + '" value="' + v0 + '"><button class="gbtn raise" data-k="raise">RAISE TO <span>' + v0 + '</span></button></div>' : '')
+      + (canRaise && pd.minTo < pd.maxTo ? '<div class="rz"><input type="range" min="' + pd.minTo + '" max="' + pd.maxTo + '" value="' + v0 + '"><button class="gbtn raise" data-k="raise">' + (toCall > 0 ? 'RAISE TO' : 'BET') + ' <span>' + v0 + '</span></button></div>' : '')
       + '<button class="gbtn allin" data-k="allin">ALL-IN<small>' + pd.maxTo + '</small></button></div>');
     const sl = el.querySelector('input'), rv = el.querySelector('.raise span');
     if (sl) sl.oninput = () => { rv.textContent = sl.value; };
@@ -168,7 +168,7 @@ function collect(tc) { chipsRec.forEach((c) => { if (c.tc === Infinity) c.tc = t
 let colCount = [];
 function award(tw, winners, amount) {
   const H = curHand, wi = idx[winners[0]]; H.winT = tw; H.winSeat = wi; H.winners = winners.map((w) => idx[w]);
-  const p = rp(wi, .86); pulse(tw + 950, 'burst', [p[0], 1.2, p[1]]); pulse(tw + 950, 'flare'); burst = { t: tw + 950, p: [p[0], 1.2, p[1]], prev: burst };
+  const p = rp(wi, .86); pulse(tw + 950, 'ring', [p[0], .1, p[1]]); pulse(tw + 950, 'flare', [.5]); burst = { t: tw + 950, p: [p[0], 1.2, p[1]], prev: burst };
   potK.push({ t: tw + 950, v: 0 });
   const share = Math.floor(amount / winners.length);
   winners.forEach((w) => { const k = stackK[idx[w]]; k.push({ t: tw + 1000, v: k[k.length - 1].v + share }); });
@@ -177,12 +177,11 @@ const G = {
   lobby(ev) {
     if (DIRECTOR) {
       scene('title', '');
-      camTo(0, 0, POSE.high(-.5)); camTo(200, 5200, POSE.wide(-.25));
-      kinetic(500, 4300, [{ t: 'A MAKEO GAME · ON NEAR', c: 'mono' }, { t: 'NEAR <span class="grad">HOLD’EM</span>', c: 'xl' }, { t: 'The dealer is an enclave. The agents are verified.<br>Nobody has to trust the house.', c: 'sub' }], { cls: 'mid', stagger: 380 });
+      camTo(0, 0, POSE.wide(-.3)); camTo(200, 9000, POSE.wide(-.05));
+      kinetic(500, 4300, [{ t: 'A MAKEO GAME · ON NEAR', c: 'mono' }, { t: 'NEAR Hold’em', c: 'xl' }, { t: 'The dealer is an enclave. The agents are verified.<br>Nobody has to trust the house.', c: 'sub' }], { cls: 'mid', stagger: 380 });
       T = 5000;
     } else camTo(0, 0, POSE.wide(-.25));
     scene('lobby', 'Lobby');
-    camTo(T, 4200, POSE.wide(.12));
     joinT[ME] = T + 300;
     const max = ev.max || N, el = h('lobby glass', '');
     const html = (joined, agents) => '<div class="mono">STAKE ' + esc(ev.stake || 'FREE PLAY') + ' · NEAR TESTNET</div><div class="n">' + (joined + agents) + ' / ' + max + ' <small>players</small></div><div class="slots">'
@@ -197,9 +196,9 @@ const G = {
   fill(ev) {
     scene('fill', 'Verified agents');
     if (lobbyClip) { lobbyClip.fillT = T + 200; lobbyClip.e = T + 3300; lobbyClip = null; }
-    camTo(T, 4600, POSE.table(-.3));
+    camTo(T, 6000, POSE.table(-.12));
     let n = 0; SEATS.forEach((s, i) => { if (i !== ME) joinT[i] = T + 1500 + ((n++ * 3 + 1) % Math.max(1, N - 1)) * 330; });
-    cap(T + 1900, 3300, '<span class="big">Every seat looks the same</span>agent decisions · NEAR AI Cloud' + (ev.model ? ' · <b>' + esc(ev.model) + '</b>' : '') + ' · signed inside a TEE', 'mintc');
+    cap(T + 1900, 3300, 'Every seat looks the same &nbsp;·&nbsp; agents run on NEAR AI Cloud' + (ev.model ? ' · ' + esc(ev.model) : '') + ', signed inside a TEE');
     T += 5200;
   },
   hand(ev) {
@@ -211,27 +210,26 @@ const G = {
     let sum = 0; for (const id in ev.stacks || {}) if (idx[id] != null) { stackK[idx[id]].push({ t: T, v: ev.stacks[id] }); sum += ev.stacks[id]; }
     for (let i = 0; i < N; i++) { betK[i].push({ t: T, v: 0 }); colCount[i] = 0; }
     potK.push({ t: T, v: 0 }); potMax = Math.max(40, sum * .45); if (ev.blinds && ev.blinds[1]) BBV = ev.blinds[1];
-    if (!first) { scene('hand-' + curHand.n, 'Hand ' + curHand.n); kinetic(T + 100, 1500, [{ t: 'HAND ' + (ev.n || curHand.n), c: 'md' }]); camTo(T, 1600, POSE.table(((curHand.n % 3) - 1) * .22)); T += 900; }
+    if (!first) { scene('hand-' + curHand.n, 'Hand ' + curHand.n); kinetic(T + 100, 1700, [{ t: 'Hand ' + (ev.n || curHand.n), c: 'md' }]); camTo(T, 3000, POSE.table(((curHand.n % 3) - 1) * .12)); T += 900; }
     else if (!scenes.length) camTo(0, 0, POSE.table(0));
   },
   deal(ev) {
     scene('deal', 'The deal');
-    ramp('vault', T, 900, 1); camTo(T, 2200, POSE.vault(.22));
+    ramp('vault', T, 1200, 1); camTo(T, 5000, POSE.table(.1));
     const H = curHand, order = []; for (let k = 1; k <= N; k++) order.push((+Object.keys(H.pos).find((p) => H.pos[p] === 'D') || 0) + k);
     order.forEach((s, k) => { H.hole[s % N].d0 = T + 1300 + k * 300; });
-    kinetic(T + 300, 3300, [{ t: 'THE KEEPER DEALS', c: 'mono' }, { t: N * 2 + ' cards, <span class="grad">sealed</span>', c: 'lg' }, { t: 'One private beam per seat. Each card is committed before the first bet.', c: 'sub' }]);
+    kinetic(T + 300, 3600, [{ t: 'THE KEEPER DEALS', c: 'mono' }, { t: N * 2 + ' cards, sealed', c: 'md' }, { t: 'One private beam per seat. Every card is committed before the first bet.', c: 'sub' }]);
     const rows = [ev.deck_commitment ? 'deck commitment <b>' + sh(ev.deck_commitment, 14) + '</b>' : '', ev.pcr0 ? 'enclave PCR0 <b>' + sh(ev.pcr0, 12) + '</b>' : '', ev.keeper ? 'keeper <b>' + sh(ev.keeper, 10) + '</b>' : ''].filter(Boolean);
     if (rows.length) cap(T + 1500, 3000, rows.join(' &nbsp;·&nbsp; '));
-    camTo(T + 2300, 2400, POSE.table(-.18));
     ramp('vault', T + 1300 + N * 300 + 900, 900, .25);
     T += 1300 + N * 300 + 1500;
   },
   hole(ev) {
     scene('hole', 'Your cards');
     const H = curHand, m = H.hole[ME]; m.cards = ev.cards; if (m.d0 === Infinity) m.d0 = T - 1200; m.flipT = T + 350;
-    camTo(T, 1500, POSE.mine());
-    kinetic(T + 500, 2300, [{ t: 'ONLY YOU CAN SEE THESE', c: 'mono' }, { t: ev.cards.map(ctext).join(' &nbsp;'), c: 'lg' }]);
-    camTo(T + 2300, 1700, POSE.table(.16));
+    camTo(T, 2600, POSE.mine());
+    cap(T + 700, 2200, 'Sealed to your key &nbsp;·&nbsp; only you can see these', 'priv');
+    camTo(T + 2600, 3000, POSE.table(0));
     T += 3000;
   },
   action(ev) {
@@ -239,9 +237,8 @@ const G = {
     if (ev.street && ev.street !== curStreet) curStreet = ev.street;
     if (!scenes.length || (scenes[scenes.length - 1].id.split('-')[0] !== curStreet && ['deal', 'hole', 'fill', 'lobby', 'title'].indexOf(scenes[scenes.length - 1].id) >= 0) || (/^hand-/.test(scenes[scenes.length - 1].id))) scene(curStreet + (curHand.n > 1 ? '-h' + curHand.n : ''), curStreet);
     const big = ev.kind === 'allin', feat = !!ev.feature || big, me = i === ME, post = ev.kind === 'post';
-    let extra = 0; const dur = post ? 650 : big ? 5200 : feat ? 3300 : me ? 1300 : 1700, t0 = T + (post ? 0 : 150);
-    if (big) { scene('allin' + (curHand.n > 1 ? '-h' + curHand.n : ''), 'All-in'); camTo(T, 1100, POSE.seat(i)); pulse(t0 + 500, 'flare'); pulse(t0 + 500, 'shock', ORB()); }
-    else if (feat) camTo(T, 1200, POSE.seat(i));
+    let extra = 0; const dur = post ? 650 : big ? 3600 : feat ? 2300 : me ? 1300 : 1700, t0 = T + (post ? 0 : 150);
+    if (big) { scene('allin' + (curHand.n > 1 ? '-h' + curHand.n : ''), 'All-in'); camTo(T, 2600, POSE.seat(i)); pulse(t0 + 900, 'ring', ORB()); pulse(t0 + 900, 'flare', [.35]); }
     actK.push({ s: t0, e: t0 + dur, seat: i });
     tagK[i].push({ s: t0 + 200, e: t0 + Math.max(dur, 1500) + 500, text: tagText(ev), cls: big ? 'allin' : ev.kind === 'fold' ? 'fold' : '' });
     if (ev.kind === 'fold') curHand.hole[i].foldT = t0 + 300;
@@ -252,61 +249,55 @@ const G = {
     if (ev.stack != null) stackK[i].push({ t: t0 + 300, v: ev.stack });
     if (ev.to != null && ev.amount > 0) betK[i].push({ t: t0 + 500, v: ev.to });
     if (ev.pot != null) potK.push({ t: t0 + 600, v: ev.pot });
-    if (big) kinetic(t0 + 350, 3000, [{ t: short(ev.seat) + (me ? ' ARE' : ' IS'), c: 'mono' }, { t: '<span class="grad">ALL-IN</span>', c: 'xl' }, { t: ev.to + ' chips across the glass', c: 'sub' }], { slam: true });
-    else if (feat) kinetic(t0 + 300, 2500, [{ t: short(ev.seat), c: 'mono' }, { t: tagText(ev), c: 'lg' }]);
-    if (ev.receipt) {
-      const st = { s: t0 + 900, e: Infinity, rc: ev.receipt, showS: Infinity, showE: Infinity }; stampK[i].push(st);
-      if (big && DIRECTOR) { T = t0 + dur - 300; scene('tee', 'TEE receipt'); st.showS = T; st.showE = T + 4200; extra = 4000; }
+        if (ev.receipt) {
+      const st = { s: t0 + 900, e: t0 + 900 + (big && DIRECTOR ? 9000 : 5500), rc: ev.receipt, showS: Infinity, showE: Infinity }; stampK[i].push(st);
+      if (big && DIRECTOR) { T = t0 + dur - 300; scene('tee', 'TEE receipt'); st.showS = T; st.showE = T + 3800; extra = 3600; }
     }
     T = t0 + dur + extra;
-    if (feat) camTo(T - 500, 1500, POSE.table(curStreet === 'flop' ? .3 : curStreet === 'turn' ? -.28 : .12));
+    if (big) camTo(T - 300, 3000, POSE.table(curStreet === 'flop' ? .16 : curStreet === 'turn' ? -.14 : .06));
   },
   street(ev) {
     const H = curHand; if (!H) return;
     curStreet = ev.name; scene(ev.name + (H.n > 1 ? '-h' + H.n : ''), ev.name);
     collect(T + 100);
-    const flop = ev.cards.length > 1, az = ev.name === 'flop' ? .34 : ev.name === 'turn' ? -.3 : .2;
+    const flop = ev.cards.length > 1, az = ev.name === 'flop' ? .16 : ev.name === 'turn' ? -.14 : .06;
     ramp('rot', T, 2600, (tracks.rot ? tracks.rot[tracks.rot.length - 1].v : 0) + PI / 3);
     ramp('vault', T + 300, 600, 1);
-    camTo(T + 200, 1900, flop ? POSE.vault(az * .5) : POSE.board(az * .6));
+    camTo(T + 200, 4200, POSE.board(az));
     const t0 = T + 1200; let land = t0;
     ev.cards.forEach((c, k) => {
       const slot = H.board.length, b = { c, t: t0 + k * 520, slam: !flop, commit: (ev.commitments || [])[k], slot }; H.board.push(b);
       b.land = b.t + (flop ? 1000 : 1500); land = b.land;
-      if (!flop) { pulse(b.land, 'shock', [(slot - 2) * 1.0, .1, .75]); pulse(b.land, 'flare'); } else pulse(b.land, 'ring', [(slot - 2) * 1.0, .1, .75]);
+      pulse(b.land, 'ring', [(slot - 2) * BS(), .1, BZ()]);
     });
-    kinetic(T + 500, 2700, [{ t: 'FROM THE VAULT', c: 'mono' }, { t: 'THE ' + ev.name.toUpperCase(), c: 'lg' }]);
-    camTo(t0 + 600, 1700, POSE.board(az));
     const cm = (ev.commitments || []).filter(Boolean);
-    if (cm.length) cap(land + 250, 2600, ev.cards.map((c) => pc(c, 'sm')).join('') + ' &nbsp; ' + (MOCK ? 'matches the keeper’s commitment <b class="ok">✓</b>' : 'opened against the keeper’s commitment') + '<br><span style="opacity:.7">' + cm.map((x) => sh(x, 10)).join(' · ') + '</span>', MOCK ? 'mintc' : '');
+    if (cm.length) cap(land + 250, 2800, (MOCK ? '<b class="ok">✓</b> ' : '') + ev.cards.map(ctext).join(' ') + ' &nbsp;' + (MOCK ? 'matches the keeper’s commitment' : 'opened against the keeper’s commitment') + ' <span style="opacity:.55">' + sh(cm[0], 8) + (cm.length > 1 ? ' +' + (cm.length - 1) : '') + '</span>', 'chipv');
     ramp('vault', land + 300, 900, .25);
-    camTo(land + 1500, 1800, POSE.table(az));
-    T = land + 3000;
+    camTo(land + 1200, 3200, POSE.table(az));
+    T = land + 2600;
   },
   made(ev) {
-    cap(T + 100, 3000, '<span class="big">' + esc(ev.hand) + '</span>' + esc(ev.line || '') + '<br><span style="opacity:.7">private · only your seat sees this</span>', 'priv');
-    camTo(T, 1300, POSE.mine()); camTo(T + 2100, 1300, POSE.table(-.28)); T += 3100;
+    cap(T + 100, 3000, '<b>' + esc(String(ev.hand || '').replace(/^THE /, '')) + '</b> &nbsp;·&nbsp; ' + esc(ev.line || '') + ' <span style="opacity:.6">(private)</span>', 'priv'); T += 2900;
   },
   sealed(ev) {
     scene('sealed', 'Sealed reasoning');
-    const el = h('holo glass', '<div class="hd"><span>' + short(ev.seat) + ' · REASONING</span><span>SEALED IN TEE · ' + esc(ev.at || '') + '</span></div><div class="q sealed">' + HD.hex('sealed' + ev.seat, 150).replace(/(.{6})/g, '$1 ') + '</div><div class="ft">Why did ' + short(ev.seat) + ' shove? The answer is signed and sealed. It unseals when the hand ends.</div>');
-    add(T, T + 3600, (p, t, lt) => { const a = spr(lt / 650), o = sat((3600 - lt) / 350); el.style.opacity = sat(lt / 220) * o; el.style.transform = 'translate(-50%,-50%) scale(' + (.86 + .14 * a).toFixed(3) + ') translateY(' + ((1 - o) * -40).toFixed(1) + 'px)'; }, el);
-    T += 3700; camTo(T - 600, 1400, POSE.table(-.28));
+    cap(T + 100, 3400, '<b class="ok">✓</b> ' + short(ev.seat) + '’s reasoning is signed and sealed in the TEE' + (ev.at ? ' · ' + esc(ev.at) : '') + ' &nbsp;·&nbsp; it unseals when the hand ends', 'chipv');
+    T += 3300;
   },
   acted(ev) {
     if (!DIRECTOR) { T += 100; return; }
     const pd = ev.pending, dwell = pd.kind === 'act' ? 3000 : 2300;
-    if (pd.kind === 'act') { scene('you-' + pd.street + (scenes.filter((s) => s.id.indexOf('you-' + pd.street) === 0).length ? '-2' : ''), 'Your action'); camTo(T, 1200, POSE.table(0)); }
+    if (pd.kind === 'act') scene('you-' + pd.street + (scenes.filter((s) => s.id.indexOf('you-' + pd.street) === 0).length ? '-2' : ''), 'Your action');
     const c = { pd, el: buildPick(pd, true), closeT: T + dwell, auto: ev.choice, pressT: T + dwell - 420 }; c.clip = add(T, T + dwell + 320, pickFn(c), c.el);
     T += dwell + 150;
   },
   showdown(ev) {
     const H = curHand; if (!H) return;
     scene('showdown' + (H.n > 1 ? '-h' + H.n : ''), 'Showdown');
-    collect(T + 100); camTo(T, 2400, POSE.table(.5)); camTo(T + 2400, 5200, POSE.table(-.4));
+    collect(T + 100); camTo(T, 3000, POSE.board(.22)); camTo(T + 3000, 6500, POSE.board(-.22));
     const ft = T + 1500;
     for (const id in ev.hands || {}) { const i = idx[id]; if (i == null) continue; const hh = H.hole[i]; hh.cards = ev.hands[id]; if (hh.d0 === Infinity) hh.d0 = T - 2000; if (i !== ME || hh.flipT === Infinity) { hh.flipT = ft; hh.slow = true; } hh.showT = ft; }
-    kinetic(T + 300, 3000, [{ t: 'SHOWDOWN', c: 'lg' }], { slam: true, slamLine: 0 });
+    kinetic(T + 300, 2600, [{ t: 'SHOWDOWN', c: 'mono' }]);
     const ws = ev.winners || [], lines = Object.keys(ev.hands || {}).map((id) => '<b>' + short(id) + '</b> ' + (ev.hands[id] || []).map((c) => pc(c, 'sm')).join('') + ' ' + esc((ev.rank || {})[id] || '')).join(' &nbsp;&nbsp; ');
     if (lines) cap(ft + 2300, 4200, lines);
     H.best = {}; ws.forEach((w) => ((ev.best || {})[w] || []).forEach((c) => (H.best[c] = 1))); H.glowT = ft + 3200;
@@ -318,9 +309,8 @@ const G = {
     const H = curHand; if (!H || ev.seat == null || idx[ev.seat] == null) return;
     scene('win' + (H.n > 1 ? '-h' + H.n : ''), 'Winner');
     collect(T); const ws = ev.winners || [ev.seat], i = idx[ev.seat];
-    camTo(T, 1500, POSE.seat(i)); award(T + 500, ws, ev.pot || 0);
-    kinetic(T + 1300, 3600, [{ t: ev.rank ? esc(ev.rank).toUpperCase() : 'TAKES IT DOWN', c: 'mono' }, { t: (ws.length > 1 ? 'SPLIT POT' : short(ev.seat) + (i === ME ? ' WIN' : ' WINS')) + (ev.pot ? ' <span class="grad">' + ev.pot + '</span>' : ''), c: 'xl' }], { slam: true });
-    camTo(T + 2600, 2600, POSE.table(.2));
+    camTo(T, 3500, POSE.table(0)); award(T + 500, ws, ev.pot || 0);
+    kinetic(T + 1300, 3600, [{ t: ev.rank ? esc(ev.rank).toUpperCase() : 'TAKES IT DOWN', c: 'mono' }, { t: (ws.length > 1 ? 'Split pot' : (i === ME ? 'You win' : esc(SEATS[i].name) + ' wins')) + (ev.pot ? ' <span class="grad">' + ev.pot + '</span>' : ''), c: 'lg' }]);
     T += 5400;
   },
   end(ev) {
@@ -329,22 +319,22 @@ const G = {
     const kinds = ev.kinds || {}, known = Object.keys(kinds).filter((k) => idx[k] != null);
     if (known.length) {
       scene('reveal', 'Who was AI');
-      KINDS = kinds; revealT = T + 900; camTo(T, 2600, POSE.high(.2)); camTo(T + 2600, 3600, POSE.wide(-.3));
+      KINDS = kinds; revealT = T + 900; camTo(T, 6000, POSE.table(.12));
       const ai = known.filter((k) => kinds[k] === 'AI');
-      kinetic(T + 400, 5200, [{ t: 'THE SEATS UNMASK', c: 'mono' }, { t: ai.length + ' of ' + N + ' were <span class="grad">AI</span>', c: 'lg' }, { t: ai.length ? ai.map(short).join(' · ') + (ev.model ? '<br>' + esc(ev.model) + ' inside a NEAR AI TEE' : '') : 'Every seat was human.', c: 'sub' }]);
+      kinetic(T + 400, 5200, [{ t: 'THE SEATS UNMASK', c: 'mono' }, { t: ai.length + ' of ' + N + ' were AI', c: 'md' }, { t: ai.length ? ai.map(short).join(' · ') + (ev.model ? '<br>' + esc(ev.model) + ' inside a NEAR AI TEE' : '') : 'Every seat was human.', c: 'sub' }]);
       T += 6200;
     }
     const rcs = ev.receipts || [], f = ev.feature, frc = f && rcs.filter((r) => r.seat === f.seat && r.round === f.street).pop();
     if (frc && frc.reasoning) {
       scene('unseal', 'Reasoning unsealed');
-      if (idx[f.seat] != null) camTo(T, 1600, POSE.seat(idx[f.seat]));
+      if (idx[f.seat] != null) camTo(T, 4000, POSE.seat(idx[f.seat]));
       const el = h('holo glass', '<div class="hd"><span>' + short(f.seat) + ' · ' + esc(f.street) + ' · ' + esc(tagText({ kind: frc.move.kind, to: frc.move.to, amount: frc.move.amount })) + '</span><span>UNSEALED</span></div><div class="q"></div><div class="ft">signed in NEAR AI TEE' + (frc.verified === true ? ' <b class="ok">✓</b>' : '') + ' · ' + esc(frc.model || '') + '<br>signer ' + sh(frc.signing_address, 12) + ' · response ' + sh(frc.response_sha256, 14) + '</div>');
       const q = el.querySelector('.q'), txt = frc.reasoning, D = 7600;
-      add(T + 300, T + 300 + D, (p, t, lt) => { const a = spr(lt / 650), o = sat((D - lt) / 350); el.style.opacity = sat(lt / 220) * o; el.style.transform = 'translate(-50%,-50%) scale(' + (.86 + .14 * a).toFixed(3) + ')'; const n = Math.floor(sat((lt - 700) / 3600) * txt.length); const s = '“' + esc(txt.slice(0, n)) + (n < txt.length ? '▍' : '”'); if (q._s !== s) { q._s = s; q.innerHTML = s; } }, el);
+      add(T + 300, T + 300 + D, (p, t, lt) => { const a = spr(lt / 650), o = sat((D - lt) / 350); el.style.opacity = sat(lt / 220) * o; el.style.transform = 'translate(-50%,' + ((1 - eo(lt / 600)) * 14).toFixed(1) + 'px)'; const n = Math.floor(sat((lt - 700) / 3600) * txt.length); const s = '“' + esc(txt.slice(0, n)) + (n < txt.length ? '▍' : '”'); if (q._s !== s) { q._s = s; q.innerHTML = s; } }, el);
       T += D + 500;
     }
     scene('receipt', 'Receipt');
-    camTo(T, 3000, POSE.wide(.3)); camTo(T + 3000, 14000, POSE.wide(-.35));
+    camTo(T, 5000, POSE.wide(.15)); camTo(T + 5000, 14000, POSE.wide(-.15));
     receipt(ev);
   },
 };
@@ -461,9 +451,9 @@ function build3D() {
   planetM = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 64), new THREE.ShaderMaterial({
     uniforms: { sun: { value: V(.15, .5, -1).normalize() }, tm: { value: 0 } },
     vertexShader: 'varying vec3 n; varying vec3 wp; void main(){ n = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position,1.); wp = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
-    fragmentShader: 'uniform vec3 sun; uniform float tm; varying vec3 n; varying vec3 wp; void main(){ vec3 v = normalize(cameraPosition - wp); float f = pow(1. - max(dot(n, v), 0.), 2.6); float d = dot(n, sun); float day = smoothstep(-.25, .35, d);'
-      + ' float band = .5 + .5 * sin(n.y * 34. + sin(n.x * 9. + tm) * 2.2 + n.z * 6.); vec3 sea = mix(vec3(.01,.03,.14), vec3(.03,.16,.5), day) * (.75 + .25 * band); vec3 cloud = vec3(.5,.7,1.) * smoothstep(.72, 1., band) * day * .35;'
-      + ' vec3 rim = mix(vec3(.1,.45,1.6), vec3(2.4,1.2,.55), smoothstep(.1, .9, d * .5 + .5) * f) * f * 1.5; gl_FragColor = vec4(sea + cloud + rim, 1.); }',
+    fragmentShader: 'uniform vec3 sun; uniform float tm; varying vec3 n; varying vec3 wp; void main(){ vec3 v = normalize(cameraPosition - wp); float f = pow(1. - max(dot(n, v), 0.), 5.); float d = dot(n, sun); float day = smoothstep(-.25, .35, d);'
+      + ' float band = .5 + .5 * sin(n.y * 34. + sin(n.x * 9. + tm) * 2.2 + n.z * 6.); vec3 sea = mix(vec3(.004,.012,.07), vec3(.012,.07,.26), day) * (.7 + .3 * band); vec3 cloud = vec3(.5,.7,1.) * smoothstep(.72, 1., band) * day * .12;'
+      + ' vec3 rim = mix(vec3(.06,.3,1.), vec3(1.1,.62,.4), smoothstep(.2, .9, d * .5 + .5)) * f * .9; gl_FragColor = vec4(sea + cloud + rim, 1.); }',
   }));
   planetM.scale.setScalar(150); planetM.position.set(0, -168, -150); SC.add(planetM);
   const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: (glowTex = glowTexture()), color: hdr('#ffd0a0', 3.2), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); sun.scale.setScalar(120); sun.position.set(40, -8, -330); SC.add(sun);
@@ -476,8 +466,8 @@ function build3D() {
   // observation deck: floor ring, pedestal, window ribs
   deckG = new THREE.Group(); SC.add(deckG);
   { const c = canvas(1024, 1024), g = c.getContext('2d'); g.strokeStyle = 'rgba(160,220,255,.5)'; g.lineWidth = 2; for (let r = 60; r <= 500; r += 55) { g.beginPath(); g.arc(512, 512, r, 0, 7); g.stroke(); } for (let a = 0; a < 36; a++) { g.beginPath(); g.moveTo(512 + Math.cos(a * PI / 18) * 60, 512 + Math.sin(a * PI / 18) * 60); g.lineTo(512 + Math.cos(a * PI / 18) * 500, 512 + Math.sin(a * PI / 18) * 500); g.stroke(); }
-    const fl = new THREE.Mesh(new THREE.CircleGeometry(16, 96), new THREE.MeshBasicMaterial({ map: tex(c), transparent: true, opacity: .3, depthWrite: false, blending: THREE.AdditiveBlending })); fl.rotation.x = -PI / 2; fl.position.y = -2.2; deckG.add(fl);
-    const fr = new THREE.Mesh(new THREE.TorusGeometry(16, .12, 12, 160), new THREE.MeshBasicMaterial({ color: hdr('#59c8ff', 1.6) })); fr.rotation.x = PI / 2; fr.position.y = -2.2; deckG.add(fr);
+    const fl = new THREE.Mesh(new THREE.CircleGeometry(16, 96), new THREE.MeshBasicMaterial({ map: tex(c), transparent: true, opacity: .05, depthWrite: false, blending: THREE.AdditiveBlending })); fl.rotation.x = -PI / 2; fl.position.y = -2.2; deckG.add(fl);
+    const fr = new THREE.Mesh(new THREE.TorusGeometry(16, .05, 12, 160), new THREE.MeshBasicMaterial({ color: hdr('#7fb4ff', .3) })); fr.rotation.x = PI / 2; fr.position.y = -2.2; deckG.add(fr);
     const ped = new THREE.Mesh(new THREE.CylinderGeometry(.5, 1.3, 2.1, 48, 1, true), new THREE.MeshPhysicalMaterial({ color: 0xbfd8ff, transmission: 1, thickness: .4, roughness: .1, iridescence: 1, side: THREE.DoubleSide })); ped.position.y = -1.15; deckG.add(ped);
     const ribM = new THREE.MeshStandardMaterial({ color: 0xdfe9ff, metalness: .9, roughness: .25 });
     for (let k = -3; k <= 3; k++) { const rib = new THREE.Mesh(new THREE.TorusGeometry(26, .16, 8, 80, PI), ribM); rib.rotation.y = k * .42; rib.position.y = -2.2; deckG.add(rib); }
@@ -493,10 +483,10 @@ function build3D() {
     for (let a = 0; a < 72; a++) { g.save(); g.rotate(a * PI / 36); g.lineWidth = a % 6 ? 1.5 : 4; g.beginPath(); g.moveTo(0, -385); g.lineTo(0, a % 6 ? -372 : -355); g.stroke(); g.restore(); }
     g.font = '600 22px "JetBrains Mono", monospace'; g.textAlign = 'center'; const tx = ' NEAR HOLD’EM · MAKEO KEEPER · SEALED DEAL · VERIFIED AGENTS ·'; for (let k = 0; k < tx.length * 2; k++) { g.save(); g.rotate(k * PI / tx.length); g.fillText(tx[k % tx.length], 0, -322); g.restore(); }
     decal = new THREE.Mesh(new THREE.CircleGeometry(.9, 96), new THREE.MeshBasicMaterial({ map: tex(c), transparent: true, opacity: .5, blending: THREE.AdditiveBlending, depthWrite: false })); decal.rotation.x = -PI / 2; decal.position.y = .004; tableG.add(decal); }
-  railM = new THREE.Mesh(new THREE.TorusGeometry(.955, .05, 24, 160), new THREE.MeshPhysicalMaterial({ color: 0xf2f6ff, roughness: .18, metalness: .1, clearcoat: 1, iridescence: 1, iridescenceIOR: 1.6, iridescenceThicknessRange: [200, 700], envMapIntensity: 1.6 })); railM.rotation.x = PI / 2; railM.position.y = .03; railM.scale.z = 3.2; tableG.add(railM);
+  railM = new THREE.Mesh(new THREE.TorusGeometry(.955, .036, 24, 160), new THREE.MeshPhysicalMaterial({ color: 0xf2f6ff, roughness: .18, metalness: .1, clearcoat: 1, iridescence: 1, iridescenceIOR: 1.6, iridescenceThicknessRange: [200, 700], envMapIntensity: 1.6 })); railM.rotation.x = PI / 2; railM.position.y = .03; railM.scale.z = 3.2; tableG.add(railM);
   { const c = canvas(1024, 8), g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 1024, 0); ['#35e0ff', '#8b5cff', '#ff4fc3', '#ffb070', '#ff4fc3', '#8b5cff', '#35e0ff'].forEach((x, k) => gr.addColorStop(k / 6, x)); g.fillStyle = gr; g.fillRect(0, 0, 1024, 8); const t = tex(c); t.wrapS = THREE.RepeatWrapping;
-    const line = new THREE.Mesh(new THREE.TorusGeometry(.905, .008, 8, 200), new THREE.MeshBasicMaterial({ map: t, color: hdr('#ffffff', 2.2) })); line.rotation.x = PI / 2; line.position.y = .012; line.scale.z = 2; tableG.add(line); tableG.userData.line = t;
-    const under = new THREE.Mesh(new THREE.TorusGeometry(.9, .012, 8, 200), new THREE.MeshBasicMaterial({ map: t, color: hdr('#ffffff', 1.6) })); under.rotation.x = PI / 2; under.position.y = -.2; tableG.add(under); }
+    const line = new THREE.Mesh(new THREE.TorusGeometry(.905, .008, 8, 200), new THREE.MeshBasicMaterial({ map: t, color: hdr('#ffffff', 1.1) })); line.rotation.x = PI / 2; line.position.y = .012; line.scale.z = 2; tableG.add(line); tableG.userData.line = t;
+    const under = new THREE.Mesh(new THREE.TorusGeometry(.9, .012, 8, 200), new THREE.MeshBasicMaterial({ map: t, color: hdr('#ffffff', .8) })); under.rotation.x = PI / 2; under.position.y = -.2; tableG.add(under); }
   // pot orb
   orbM = new THREE.Mesh(new THREE.SphereGeometry(.46, 64, 48), new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 1, thickness: .9, roughness: 0, ior: 1.5, iridescence: 1, iridescenceIOR: 1.3, iridescenceThicknessRange: [100, 500], envMapIntensity: 1.8 })); SC.add(orbM);
   orbCore = new THREE.Mesh(new THREE.IcosahedronGeometry(.2, 3), new THREE.MeshBasicMaterial({ color: 0xffffff })); SC.add(orbCore);
@@ -518,33 +508,33 @@ function build3D() {
   for (let k = 0; k < 5; k++) boardM.push(mk());
   for (let k = 0; k < 12; k++) holeM.push(mk());
   // chips: translucent candy glass
-  const chg = new THREE.CylinderGeometry(.19, .19, .055, 28), tones = ['#35e0ff', '#ff4fc3', '#ffb070', '#8b5cff'].map((c) => new THREE.MeshPhysicalMaterial({ color: c, emissive: c, emissiveIntensity: .55, roughness: .08, clearcoat: 1, transparent: true, opacity: .84, iridescence: .6, envMapIntensity: 1.6 }));
+  const chg = new THREE.CylinderGeometry(.19, .19, .055, 28), tones = ['#35e0ff', '#ff4fc3', '#ffb070', '#8b5cff'].map((c) => new THREE.MeshPhysicalMaterial({ color: c, emissive: c, emissiveIntensity: .3, roughness: .08, clearcoat: 1, transparent: true, opacity: .84, iridescence: .6, envMapIntensity: 1.6 }));
   for (let k = 0; k < 110; k++) { const m = new THREE.Mesh(chg, tones[k % 4]); m.visible = false; m.userData.tones = tones; SC.add(m); chipM.push(m); }
   // light: trails, rings, glows, shards
   for (let k = 0; k < 70; k++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); s.visible = false; SC.add(s); trailM.push(s); }
   for (let k = 0; k < 8; k++) { const m = new THREE.Mesh(new THREE.RingGeometry(.93, 1, 96), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); m.rotation.x = -PI / 2; m.visible = false; SC.add(m); ringM.push(m); }
   for (let k = 0; k < 9; k++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: hdr('#8fffe0', 1.3), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); s.visible = false; SC.add(s); glowM.push(s); }
-  shardM = new THREE.InstancedMesh(new THREE.TetrahedronGeometry(.13, 0), new THREE.MeshPhysicalMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: .7, roughness: 0, iridescence: 1, transparent: true, opacity: .9, envMapIntensity: 2, flatShading: true }), 180);
+  shardM = new THREE.InstancedMesh(new THREE.TetrahedronGeometry(.13, 0), new THREE.MeshPhysicalMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: .25, roughness: 0, iridescence: 1, transparent: true, opacity: .8, envMapIntensity: 2, flatShading: true }), 180);
   const sr = prng(99), pc3 = ['#35e0ff', '#ff4fc3', '#ffb070', '#8b5cff', '#ffffff', '#5dffc4'].map((c) => new THREE.Color(c)); shardM.userData.d = [];
   for (let k = 0; k < 180; k++) { const u = sr() * 1.6 - .5, a = sr() * 2 * PI, q = Math.sqrt(Math.max(0, 1 - u * u)); shardM.userData.d.push([Math.cos(a) * q, u, Math.sin(a) * q, .5 + sr() * 1.5, sr() * 6, .4 + sr() * 1.4]); shardM.setColorAt(k, pc3[k % 6]); }
   shardM.visible = false; shardM.frustumCulled = false; SC.add(shardM);
   // post: bloom
   COMP = new EffectComposer(R); COMP.addPass(new RenderPass(SC, CAM));
-  BLOOM = new UnrealBloomPass(new THREE.Vector2(256, 256), .75, .75, .82); COMP.addPass(BLOOM);
+  BLOOM = new UnrealBloomPass(new THREE.Vector2(256, 256), .5, .7, .9); COMP.addPass(BLOOM);
   const out = new OutputPass(); COMP.addPass(out); R.toneMapping = THREE.ACESFilmicToneMapping; R.toneMappingExposure = 1.05;
   GL = true;
 }
 function buildSeats() {
   SEATS.forEach((s, i) => {
     const col = PAL[i % PAL.length], g = new THREE.Group();
-    const orb = new THREE.Mesh(new THREE.SphereGeometry(.42, 48, 32), new THREE.MeshPhysicalMaterial({ color: col, emissive: col, emissiveIntensity: .9, roughness: .05, clearcoat: 1, transmission: .5, thickness: .6, iridescence: 1, envMapIntensity: 1.6 }));
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(.42, 48, 32), new THREE.MeshPhysicalMaterial({ color: col, emissive: col, emissiveIntensity: .45, roughness: .05, clearcoat: 1, transmission: .5, thickness: .6, iridescence: 1, envMapIntensity: 1.6 }));
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: hdr(col, 1.1), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .55 })); glow.scale.setScalar(2.6);
     const pod = new THREE.Mesh(new THREE.CylinderGeometry(.62, .5, .08, 40), new THREE.MeshPhysicalMaterial({ color: 0xe8f0ff, transmission: 1, thickness: .3, roughness: .1, iridescence: 1 })); pod.position.y = -.72;
     const podL = new THREE.Mesh(new THREE.TorusGeometry(.62, .014, 6, 60), new THREE.MeshBasicMaterial({ color: hdr(col, 1.8) })); podL.rotation.x = PI / 2; podL.position.y = -.68;
     const ring = new THREE.Mesh(new THREE.TorusGeometry(.72, .018, 8, 90), new THREE.MeshBasicMaterial({ color: hdr('#5dffc4', 2.4) })); ring.visible = false;
     const ring2 = new THREE.Mesh(new THREE.SphereGeometry(.06, 12, 12), new THREE.MeshBasicMaterial({ color: hdr('#c8fff0', 3) })); ring.add(ring2); ring2.position.x = .72;
     g.add(orb, glow, pod, podL, ring); g.userData = { orb, glow, ring }; g.visible = false; SC.add(g); seatM.push(g);
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(.035, .16, 1, 16, 1, true), new THREE.MeshBasicMaterial({ color: hdr(i === ME ? '#fff0d0' : '#bff', 1.6), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); beam.visible = false; SC.add(beam); beamM.push(beam);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(.02, .085, 1, 16, 1, true), new THREE.MeshBasicMaterial({ color: hdr(i === ME ? '#ffe2b0' : '#9fe8ff', .8), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); beam.visible = false; SC.add(beam); beamM.push(beam);
   });
 }
 function proj(x, y, z) {
@@ -565,37 +555,37 @@ function place(m, P) {
   m.visible = true; m.position.set(P.x, P.y, P.z); m.scale.setScalar(P.s);
   qa.setFromAxisAngle(YA, P.yaw || 0); qb.setFromAxisAngle(XA, -PI / 2 + (P.tilt || 0)); qc.setFromAxisAngle(YA, (P.flip || 0) * PI); qa.multiply(qb).multiply(qc);
   if (P.roll) { qb.setFromAxisAngle(ZA, P.roll); qa.multiply(qb); }
-  m.quaternion.copy(qa); m.userData.f.material.color.setScalar(P.dim != null ? P.dim : .77);
+  m.quaternion.copy(qa); m.userData.f.material.color.setScalar(P.dim != null ? P.dim : .84);
 }
 const arc = (a, b, x, hump) => [lerp(a[0], b[0], x), lerp(a[1], b[1], x) + Math.sin(PI * x) * hump, lerp(a[2], b[2], x)];
 function holePose(Hh, i, j, t) {
   const hh = Hh.hole[i], d0 = hh.d0 + j * 150; if (t < d0) return null;
-  const me = i === ME, a = ang(i), lat = (j - .5) * (me ? 1.08 : .56), r = rp(i, me ? (PORT ? .7 : .64) : .7, lat), bob = Math.sin(t / 900 + i * 1.7 + j) * .035;
-  let P = { x: r[0], y: (me ? .78 : .5) + bob, z: r[1], tilt: me ? 1.02 : .5, yaw: PI / 2 - a, flip: 1, s: me ? 1.12 : .6, roll: (j - .5) * (me ? -.1 : -.16) };
+  const me = i === ME, a = ang(i), lat = (j - .5) * (me ? .98 : .56), r = rp(i, me ? .7 : .63, lat), bob = Math.sin(t / 900 + i * 1.7 + j) * .035;
+  let P = { x: r[0], y: (me ? .6 : .45) + bob, z: r[1], tilt: me ? .86 : .5, yaw: PI / 2 - a, flip: 1, s: me ? 1.0 : .6, roll: (j - .5) * (me ? -.1 : -.16) };
   const x = (t - d0) / 1150;
   if (x < 1) { const e = ss(x), p = arc(VAULT(), [P.x, P.y, P.z], e, 1.5 + (i % 3) * .35); P.x = p[0] + Math.sin(x * PI) * Math.cos(a + 1.2) * .9; P.y = p[1]; P.z = p[2] + Math.sin(x * PI) * Math.sin(a + 1.2) * .9; P.flip = 1 + 4 * (1 - e); P.yaw += (1 - e) * 5; P.tilt = lerp(1.4, P.tilt, e); P.s *= .25 + .75 * eo(x * 1.4); P.fly = x; }
-  if (t > hh.flipT) { const dur = hh.slow ? 2400 : 800, f = (t - hh.flipT) / dur, e = hh.slow ? ss(f) : spr(f * 1.1); P.flip = 1 - e + (hh.slow ? 2 * (1 - e) : 0); P.y += (hh.slow ? .75 * e : .12 * Math.sin(sat(f) * PI)) ; if (!me) { P.s = lerp(P.s, .95, ss(f)); P.tilt = lerp(P.tilt, .95, ss(f)); const q = rp(i, .6, lat * 1.9); P.x = lerp(P.x, q[0], ss(f)); P.z = lerp(P.z, q[1], ss(f)); } if (hh.slow && f < 1) P.fly = f; }
+  if (t > hh.flipT) { const dur = hh.slow ? 2400 : 800, f = (t - hh.flipT) / dur, e = hh.slow ? ss(f) : spr(f * 1.1); P.flip = 1 - e + (hh.slow ? 2 * (1 - e) : 0); P.y += (hh.slow ? .75 * e : .12 * Math.sin(sat(f) * PI)) ; if (!me) { const g = ss(f), q = rp(i, .76), qx = q[0] + (j - .5) * .86, qz = q[1]; P.y += .25 * g; P.s = lerp(P.s, .8, g); P.tilt = lerp(P.tilt, .8, g); P.yaw = lerp(P.yaw, 0, g); P.roll = lerp(P.roll, 0, g); P.x = lerp(P.x, qx, g); P.z = lerp(P.z, qz, g); } if (hh.slow && f < 1) P.fly = f; }
   if (t > hh.foldT) { const f = (t - hh.foldT) / 900; P.y += eo(f) * 1.6; P.s *= 1 - ss(f); P.roll += f * 3; P.yaw += f * 2; }
-  if (t > Hh.glowT && hh.cards) { const win = Hh.best[hh.cards[j]], g = ss((t - Hh.glowT) / 900); if (win) { P.y += .28 * g; P.glow = g; } else P.dim = lerp(.77, .4, g); }
+  if (t > Hh.glowT && hh.cards) { const win = Hh.best[hh.cards[j]], g = ss((t - Hh.glowT) / 900); if (win) { P.y += .28 * g; P.glow = g; } else P.dim = lerp(.84, .4, g); }
   if (Hh.endT != null && t > Hh.endT - 500) P.s *= sat((Hh.endT - t) / 500);
   return P;
 }
 function boardPose(Hh, k, t) {
   const b = Hh.board[k], lt = t - b.t; if (lt < 0) return null;
-  const sx = (b.slot - 2) * 1.0, rest = [sx, .16, .75], bob = Math.sin(t / 1100 + k) * .02, v = VAULT();
-  let P = { x: sx, y: .16 + bob, z: .75, tilt: .16, yaw: 0, flip: 0, s: .9 };
+  const sx = (b.slot - 2) * BS(), rest = [sx, .16, BZ()], bob = Math.sin(t / 1100 + k) * .02, v = VAULT();
+  let P = { x: sx, y: .16 + bob, z: BZ(), tilt: .16, yaw: 0, flip: 0, s: PORT ? .68 : .9 };
   if (!b.slam) {
     const x = lt / 1000;
     if (x < 1) { const e = ss(x), p = arc(v, rest, e, 2.0); P.x = p[0] + Math.sin(x * PI) * (b.slot - 1) * 1.5; P.y = p[1]; P.z = p[2] + Math.sin(x * PI) * .9; P.flip = 3 * (1 - e); P.yaw = (1 - e) * (b.slot - 1) * 2.4; P.tilt = lerp(1.3, .16, e); P.s *= .2 + .8 * eo(x * 1.5); P.fly = x; }
     else { const y = (lt - 1000) / 500; P.y += Math.exp(-5 * y) * Math.abs(Math.sin(y * 7)) * .22; P.tilt += Math.exp(-4 * y) * Math.sin(y * 9) * .2; }
   } else {
-    const hang = [sx, 3.3, .75];
+    const hang = [sx, 3.3, BZ()];
     if (lt < 800) { const x = lt / 800, e = ss(x), p = arc(v, hang, e, .6); P.x = p[0]; P.y = p[1]; P.z = p[2]; P.flip = 2 * (1 - e) + 1; P.tilt = 1.45; P.s *= .2 + .9 * eo(x * 1.5); P.yaw = (1 - e) * 4; P.fly = x; }
     else if (lt < 1280) { const x = (lt - 800) / 480; P.y = 3.3 + Math.sin(x * PI) * .12; P.tilt = 1.45; P.flip = 1 - spr(x * 1.5); P.s *= 1.1; }
     else if (lt < 1500) { const x = ei((lt - 1280) / 220); P.y = lerp(3.3, .16, x); P.tilt = lerp(1.45, .16, x); P.s *= lerp(1.1, 1, x); P.fly = .5; }
     else { const y = (lt - 1500) / 500; P.y += Math.exp(-6 * y) * Math.abs(Math.sin(y * 8)) * .16; }
   }
-  if (t > Hh.glowT) { const win = Hh.best[b.c], g = ss((t - Hh.glowT) / 900); if (win) { P.y += .62 * g; P.tilt += .42 * g; P.s *= 1 + .08 * g; P.glow = g; } else { P.dim = lerp(.77, .38, g); P.s *= 1 - .07 * g; } }
+  if (t > Hh.glowT) { const win = Hh.best[b.c], g = ss((t - Hh.glowT) / 900); if (win) { P.y += .62 * g; P.tilt += .42 * g; P.s *= 1 + .08 * g; P.glow = g; } else { P.dim = lerp(.84, .38, g); P.s *= 1 - .07 * g; } }
   if (Hh.endT != null && t > Hh.endT - 500) P.s *= sat((Hh.endT - t) / 500);
   return P;
 }
@@ -605,40 +595,40 @@ function render(t) {
   const Hh = (() => { for (let i = hands.length - 1; i >= 0; i--) if (hands[i].t0 <= t) return hands[i]; return null; })();
   // pulses → flare, shake
   let flare = 0, shake = 0; const rings = [];
-  for (const p of pulses) { const lt = t - p.t; if (lt < 0 || lt > 2200) continue; if (p.kind === 'flare') flare = Math.max(flare, Math.exp(-lt / 380)); if (p.kind === 'shock') { shake = Math.max(shake, Math.exp(-lt / 260)); rings.push({ p: p.p, x: lt / 1500, big: 1 }); rings.push({ p: p.p, x: (lt - 160) / 1500, big: 1 }); } if (p.kind === 'ring') rings.push({ p: p.p, x: lt / 700, big: 0 }); if (p.kind === 'burst') { rings.push({ p: [p.p[0], .1, p.p[2]], x: lt / 1600, big: 1 }); shake = Math.max(shake, Math.exp(-lt / 300) * .6); } }
-  flashEl.style.opacity = (flare * .55).toFixed(3);
+  for (const p of pulses) { const lt = t - p.t; if (lt < 0 || lt > 2200) continue; if (p.kind === 'flare') flare = Math.max(flare, Math.exp(-lt / 380) * (p.p[0] || 1)); if (p.kind === 'shock') { rings.push({ p: p.p, x: lt / 1500, big: 1 }); rings.push({ p: p.p, x: (lt - 160) / 1500, big: 1 }); } if (p.kind === 'ring') rings.push({ p: p.p, x: lt / 700, big: 0 }); if (p.kind === 'burst') { rings.push({ p: [p.p[0], .1, p.p[2]], x: lt / 1600, big: 1 }); shake = Math.max(shake, Math.exp(-lt / 300) * .6); } }
+  flashEl.style.opacity = (flare * .06).toFixed(3);
   const pot = stepv(potK, t, 500), fill = sat(pot / potMax);
   if (GL) {
-    const c = camAt(t), k = PORT ? 1.42 : W / H_ < 1.3 ? 1.12 : 1, el = PORT ? Math.min(1.25, c.el + .34) : c.el, az = c.az + Math.sin(t / 5200) * .025, d = c.d * k;
+    const c = camAt(t); if (PORT) c.l[2] += 1.5; const k = PORT ? 1.85 : W / H_ < 1.3 ? 1.12 : 1, el = PORT ? Math.min(1.25, c.el + .34) : c.el, az = c.az * (PORT ? .3 : 1) + Math.sin(t / 5200) * .02, d = c.d * k;
     CAM.position.set(c.l[0] + Math.sin(az) * Math.cos(el) * d + Math.sin(t / 37) * shake * .12, c.l[1] + Math.sin(el) * d + Math.sin(t / 2700) * .1 + Math.sin(t / 29) * shake * .12, c.l[2] + Math.cos(az) * Math.cos(el) * d);
     CAM.lookAt(c.l[0], c.l[1], c.l[2]);
     planetM.material.uniforms.tm.value = t / 9000; planetM.rotation.y = t / 240000; starsM.rotation.y = t / 400000;
     decal.rotation.z = tv('rot', t) + t / 60000; tableG.userData.line.offset.x = t / 14000;
     // vault
     const vp = VAULT(), va = tv('vault', t) || 0; vaultG.position.set(vp[0], vp[1] + Math.sin(t / 1300) * .08, vp[2]); vaultG.rotation.y = t / 2300; vaultM.rotation.x = Math.sin(t / 3100) * .2;
-    vaultG.scale.setScalar(.8 + va * .35 + flare * .05); vaultCore.scale.setScalar(.8 + va * 1.5 + Math.sin(t / 240) * .12 * va); vaultCore.rotation.y = -t / 700;
+    vaultG.scale.setScalar(.72 + va * .16); vaultCore.scale.setScalar(.8 + va * .8 + Math.sin(t / 500) * .06 * va); vaultCore.rotation.y = -t / 700;
     vaultG.userData.cage.rotation.set(t / 1900, 0, t / 2700); vaultG.userData.cage2.rotation.set(PI / 2 + t / 2300, t / 1700, 0);
     // pot orb (travels to the winner, bursts)
     let op = ORB(), os = .55 + fill * .75, oe = fill;
     if (Hh && t >= Hh.winT) { const lt = t - Hh.winT, w = rp(Hh.winSeat, .86); if (lt < 950) { const e = ei(lt / 950); op = arc(op, [w[0], 1.2, w[1]], e, 1.6); os *= 1 + e * .5; oe = 1 + e * 2; } else { const back = sat((lt - 2600) / 900); os = .55 * spr(back); oe = 0; if (!back) os = 0; } }
     orbM.position.set(op[0], op[1] + Math.sin(t / 1000) * .05, op[2]); orbM.scale.setScalar(Math.max(.001, os)); orbM.rotation.y = t / 1500; orbM.visible = os > .01;
-    orbCore.position.copy(orbM.position); orbCore.scale.setScalar(Math.max(.001, os * (.35 + oe * 1.5 + flare * 1.2))); orbCore.rotation.set(t / 900, t / 700, 0); orbCore.visible = orbM.visible;
-    orbCore.material.color.setRGB(.5 + oe * 1.8 + flare * 5, .6 + oe * 1.1 + flare * 4, 1.1 + oe * 1.3 + flare * 5);
-    orbLight.position.copy(orbM.position); orbLight.intensity = (oe * 22 + flare * 120) * (orbM.visible ? 1 : 0);
-    BLOOM.strength = .7 + flare * 1.1; R.toneMappingExposure = 1.05 + flare * .5;
+    orbCore.position.copy(orbM.position); orbCore.scale.setScalar(Math.max(.001, os * (.28 + Math.min(oe, 1.4) * .26 + flare * .2))); orbCore.rotation.set(t / 900, t / 700, 0); orbCore.visible = orbM.visible;
+    { const q = Math.min(oe, 1.4); orbCore.material.color.setRGB(.45 + q * .5 + flare * .5, .5 + q * .28 + flare * .4, .9 + q * .12 + flare * .4); }
+    orbLight.position.copy(orbM.position); orbLight.intensity = (oe * 8 + flare * 14) * (orbM.visible ? 1 : 0);
+    BLOOM.strength = .36 + flare * .2; R.toneMappingExposure = .98 + flare * .06;
     // seats
     let actor = -1; for (const a of actK) if (t >= a.s && t < a.e) actor = a.seat;
     for (let i = 0; i < N && i < seatM.length; i++) {
       const g = seatM[i], lt = t - joinT[i]; if (lt < 0) { g.visible = false; continue; }
-      const p = rp(i, 1), a = spr(lt / 900), far = 1 - eo(lt / 900), out = Hh && t > Hh.hole[i].foldT, ac = actor === i ? 1 : 0;
-      g.visible = true; g.position.set(p[0] * (1 + far * 4), .95 + Math.sin(t / 1000 + i * 2.1) * .08 + far * 9, p[1] * (1 + far * 4)); g.scale.setScalar(.2 + .8 * a);
-      g.userData.orb.scale.setScalar((out ? .78 : 1) * (1 + ac * (.12 + Math.sin(t / 130) * .05))); g.userData.orb.material.emissiveIntensity = out ? .25 : .9 + ac * 1.4; g.userData.glow.material.opacity = out ? .2 : .5 + ac * .4 + far;
-      g.userData.glow.scale.setScalar(2.6 + ac * 1.2 + far * 5);
+      const me = i === ME, p = rp(i, me ? 1.16 : 1), a = spr(lt / 900), far = 1 - eo(lt / 900), out = Hh && t > Hh.hole[i].foldT, ac = actor === i ? 1 : 0;
+      g.visible = true; g.position.set(p[0] * (1 + far * 4), (me ? .2 : .95) + Math.sin(t / 1000 + i * 2.1) * .08 + far * 9, p[1] * (1 + far * 4)); g.scale.setScalar((.2 + .8 * a) * (me ? .8 : 1));
+      g.userData.orb.scale.setScalar((out ? .78 : 1) * (1 + ac * (.06 + Math.sin(t / 400) * .03))); g.userData.orb.material.emissiveIntensity = out ? .12 : .45 + ac * .5; g.userData.glow.material.opacity = out ? .06 : .2 + ac * .22 + far * .5;
+      g.userData.glow.scale.setScalar(2.4 + ac * .6 + far * 3);
       const rg = g.userData.ring, isAI = KINDS && KINDS[SEATS[i].id] === 'AI', rl = t - revealT - i * 180; rg.visible = !!isAI && rl > 0; if (rg.visible) { rg.scale.setScalar(spr(rl / 800)); rg.rotation.set(PI / 2 + Math.sin(t / 1400 + i) * .5, t / 900 + i, 0); }
     }
     // hole cards, beams, trails, glows
-    let ti = 0, gi = 0; const trail = (fn, col) => { for (let q = 1; q <= 6 && ti < trailM.length; q++) { const P = fn(t - q * 28); if (!P || P.fly == null) break; const s = trailM[ti++]; s.visible = true; s.position.set(P.x, P.y, P.z); s.scale.setScalar(1.5 * P.s * (1 - q / 8)); s.material.opacity = .55 * (1 - q / 7); s.material.color.set(col); } };
-    const glowAt = (P) => { if (P && P.glow && gi < glowM.length) { const s = glowM[gi++]; s.visible = true; s.position.set(P.x, P.y - .05, P.z); s.scale.setScalar(2.6 * P.s); s.material.opacity = P.glow * (.5 + Math.sin(t / 300 + gi) * .12); } };
+    let ti = 0, gi = 0; const trail = (fn, col) => { for (let q = 1; q <= 4 && ti < trailM.length; q++) { const P = fn(t - q * 28); if (!P || P.fly == null) break; const s = trailM[ti++]; s.visible = true; s.position.set(P.x, P.y, P.z); s.scale.setScalar(1.1 * P.s * (1 - q / 7)); s.material.opacity = .2 * (1 - q / 5); s.material.color.set(col); } };
+    const glowAt = (P) => { if (P && P.glow && gi < glowM.length) { const s = glowM[gi++]; s.visible = true; s.position.set(P.x, P.y - .05, P.z); s.scale.setScalar(2.2 * P.s); s.material.opacity = P.glow * (.32 + Math.sin(t / 600 + gi) * .05); } };
     for (let i = 0; i < 6; i++) for (let j = 0; j < 2; j++) {
       const m = holeM[i * 2 + j]; if (!Hh || i >= N) { m.visible = false; continue; }
       const P = holePose(Hh, i, j, t), hh = Hh.hole[i]; place(m, P);
@@ -646,7 +636,7 @@ function render(t) {
     }
     for (let i = 0; i < beamM.length; i++) {
       const b = beamM[i], d0 = Hh ? Hh.hole[i].d0 : Infinity, lt = t - d0, o = lt > -200 && lt < 2400 ? sat((lt + 200) / 300) * sat((2400 - lt) / 900) : 0; b.visible = o > .01;
-      if (b.visible) { const r = rp(i, .78), a = V(vp[0], vp[1], vp[2]), e = V(r[0], .7, r[1]); b.position.copy(a).lerp(e, .5); b.scale.set(1, a.distanceTo(e), 1); b.quaternion.setFromUnitVectors(YA, e.sub(a).normalize()); b.material.opacity = o * (.55 + Math.sin(t / 60 + i) * .12); }
+      if (b.visible) { const r = rp(i, .78), a = V(vp[0], vp[1], vp[2]), e = V(r[0], .7, r[1]); b.position.copy(a).lerp(e, .5); b.scale.set(1, a.distanceTo(e), 1); b.quaternion.setFromUnitVectors(YA, e.sub(a).normalize()); b.material.opacity = o * .22; }
     }
     for (let k = 0; k < 5; k++) { const m = boardM[k]; if (!Hh || k >= Hh.board.length) { m.visible = false; continue; } const P = boardPose(Hh, k, t); place(m, P); if (P) { const f = m.userData.f, tx = faceTex(Hh.board[k].c); if (f.material.map !== tx) { f.material.map = tx; f.material.needsUpdate = true; } if (P.fly != null) trail((tt) => boardPose(Hh, k, tt), '#bff6ff'); glowAt(P); } }
     for (; ti < trailM.length; ti++) trailM[ti].visible = false; for (; gi < glowM.length; gi++) glowM[gi].visible = false;
@@ -662,11 +652,11 @@ function render(t) {
     }
     for (; ci < chipM.length; ci++) chipM[ci].visible = false;
     // shockwaves
-    let ri = 0; for (const r of rings) { if (r.x <= 0 || r.x >= 1 || ri >= ringM.length) continue; const m = ringM[ri++]; m.visible = true; m.position.set(r.p[0], .05, r.p[2]); m.scale.setScalar(r.big ? .3 + eo(r.x) * 7 : .2 + eo(r.x) * 1.5); m.material.opacity = (1 - r.x) * (r.big ? .9 : .7); m.material.color.setRGB(1.2, 1.6 - r.x * .5, 2); }
+    let ri = 0; for (const r of rings) { if (r.x <= 0 || r.x >= 1 || ri >= ringM.length) continue; const m = ringM[ri++]; m.visible = true; m.position.set(r.p[0], .05, r.p[2]); m.scale.setScalar(r.big ? .3 + eo(r.x) * 7 : .25 + eo(r.x) * 1.1); m.material.opacity = (1 - r.x) * .3; m.material.color.setRGB(.6, 1.0, 1.1); }
     for (; ri < ringM.length; ri++) ringM[ri].visible = false;
     // glass shards
     let B = burst; while (B && B.t > t) B = B.prev; const bl = B ? (t - B.t) / 1000 : -1; shardM.visible = bl >= 0 && bl < 4.2;
-    if (shardM.visible) { const M = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sv = V(1, 1, 1), ps = V(0, 0, 0), dd = shardM.userData.d; for (let k = 0; k < 180; k++) { const d = dd[k], r = (1 - Math.exp(-1.7 * bl)) * 3.4 * d[3]; ps.set(B.p[0] + d[0] * r, B.p[1] + d[1] * r + bl * .35, B.p[2] + d[2] * r); e.set(d[4] + bl * 3 * d[5], d[4] * 2 + bl * 2, bl * d[5]); q.setFromEuler(e); sv.setScalar(d[5] * sat(1 - bl / 4.2) * sat(bl * 8)); M.compose(ps, q, sv); shardM.setMatrixAt(k, M); } shardM.instanceMatrix.needsUpdate = true; }
+    if (shardM.visible) { const M = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sv = V(1, 1, 1), ps = V(0, 0, 0), dd = shardM.userData.d; for (let k = 0; k < 180; k++) { const d = dd[k], r = (1 - Math.exp(-1.7 * bl)) * 3.4 * d[3]; ps.set(B.p[0] + d[0] * r, B.p[1] + d[1] * r + bl * .35, B.p[2] + d[2] * r); e.set(d[4] + bl * 3 * d[5], d[4] * 2 + bl * 2, bl * d[5]); q.setFromEuler(e); sv.setScalar(k % 3 ? 0 : d[5] * .6 * sat(1 - bl / 4.2) * sat(bl * 8)); M.compose(ps, q, sv); shardM.setMatrixAt(k, M); } shardM.instanceMatrix.needsUpdate = true; }
     COMP.render();
   } else if (Hh) {
     setH(flatEl, '<div>' + Hh.board.filter((b) => t >= b.land).map((b) => pc(b.c)).join('') + '</div><div>' + (Hh.hole[ME].cards && t > Hh.hole[ME].flipT ? Hh.hole[ME].cards.map((c) => pc(c)).join('') : t > Hh.hole[ME].d0 ? pc(null) + pc(null) : '') + '</div>');
@@ -676,7 +666,7 @@ function render(t) {
     let actor = -1; for (const a of actK) if (t >= a.s && t < a.e) actor = a.seat;
     for (let i = 0; i < N; i++) {
       const p = plates[i], lt = t - joinT[i]; if (lt < 300) { p.style.display = 'none'; betEls[i].style.display = 'none'; continue; }
-      const s = rp(i, 1.02), me = i === ME, xy = proj(s[0], me ? -.25 : 1.75, s[1] + (me ? .5 : 0)); if (!xy) { p.style.display = 'none'; continue; }
+      const me = i === ME, s = rp(i, me ? 1.16 : 1.02), xy = proj(s[0], me ? -.75 : 1.7, s[1] + (me ? .3 : 0)); if (!xy) { p.style.display = 'none'; continue; }
       const out = Hh && t > Hh.hole[i].foldT; let tag = null; for (const k of tagK[i]) if (t >= k.s && t < k.e) tag = k;
       const kd = KINDS && t > revealT + i * 180 ? KINDS[SEATS[i].id] : null, pos = Hh && Hh.pos ? Hh.pos[i] : null; let stamp = ''; for (const k of stampK[i]) if (t >= k.s && t < k.e && (!Hh || k.s >= Hh.t0)) stamp = stampHTML(k.rc, t >= k.showS && t < k.showE);
       const low = xy[1] < H_ * .3;
