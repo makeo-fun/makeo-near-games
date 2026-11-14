@@ -102,6 +102,15 @@ fn hashes_match_the_keeper() {
 }
 
 #[test]
+fn entry_digest_matches_eip712() {
+    // Golden from viem's hashTypedData (verify/keeper.test.ts checks verify/near.ts against the same value).
+    ctx("x.testnet", 0, 1);
+    let seat = proof::parse_address("0x00000000000000000000000000000000000000aa").unwrap();
+    let d = proof::entry_digest(GAME, &seat, "alice.testnet", STAKE, 50_000);
+    assert_eq!(hex::encode(d), "517dc8afe6e9fc37811557b0da82e1077447df98c27286343c00b36ed411e2c3");
+}
+
+#[test]
 fn enter_checks_the_seat_signature() {
     let (mut pot, _) = setup();
     let alice = key(1);
