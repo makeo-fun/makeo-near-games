@@ -80,6 +80,13 @@ export async function createPot(nearToTransfer: string) {
   return { tx: (tx as { transaction?: { hash?: string } }).transaction?.hash, account: pot };
 }
 
+/** Replaces the contract's code, keeping its state (for a fix that leaves the storage layout as it is). */
+export async function redeploy(wasmPath: string) {
+  const pot = new Account(contract(), provider(), (process.env.NEAR_POT_KEY ?? env("NEAR_OPERATOR_KEY")) as KeyPairString);
+  const deployed = await pot.deployContract(new Uint8Array(await Bun.file(wasmPath).arrayBuffer()));
+  return { deploy: (deployed as { transaction?: { hash?: string } }).transaction?.hash };
+}
+
 export const registerKeeper = (pubkey: string, pcr0: string) => call("register_keeper", { pubkey_secp256k1: pubkey, pcr0 });
 export const addOperator = (account: string) => call("add_operator", { account_id: account });
 
@@ -223,6 +230,7 @@ if (import.meta.main) {
   switch (cmd) {
     case "create-pot": out(await createPot(a[0] ?? "3.5")); break;
     case "deploy": out(await deploy(a[0]!, a[1])); break;
+    case "redeploy": out(await redeploy(a[0]!)); break;
     case "register-keeper": out(await registerKeeper(a[0]!, a[1]!)); break;
     case "add-operator": out(await addOperator(a[0]!)); break;
     case "open": out(await openGame({ game: a[0]!, stakeNear: a[1]!, seats: Number(a[2]), minutes: Number(a[3]), rulesDigest: a[4] })); break;

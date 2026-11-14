@@ -71,10 +71,13 @@ type Outcome = { kind: "Ranking"; tiers: string[][] } | { kind: "Void"; reason?:
  * Makeo series' `game.outcome` (Ranking pays its first tier, Void refunds everyone).
  */
 export function resultOf(state: Json | string) {
-  const parsed = JSON.parse(stateText(state)) as { finished?: boolean; game?: { winners?: string[]; shares?: number[]; outcome?: Outcome | null } };
+  type Picked = { winners?: string[]; shares?: number[] };
+  const parsed = JSON.parse(stateText(state)) as { finished?: boolean; game?: Picked & { outcome?: Outcome | null; rules?: Picked & { hidden?: string } } };
   const game = parsed.game ?? {};
-  const winners = game.winners ?? (game.outcome?.kind === "Ranking" ? game.outcome.tiers[0] ?? [] : []);
-  return { finished: parsed.finished === true, winners: winners.map((w) => w.toLowerCase()), shares: game.shares ?? null };
+  // The same order as the contract: the game's winners, a series' rules winners, then its outcome's first tier.
+  const rules = game.rules && game.rules.hidden === undefined ? game.rules : undefined;
+  const from: Picked = game.winners ? game : rules?.winners ? rules : { winners: game.outcome?.kind === "Ranking" ? game.outcome.tiers[0] ?? [] : [] };
+  return { finished: parsed.finished === true, winners: (from.winners ?? []).map((w) => w.toLowerCase()), shares: from.shares ?? null };
 }
 
 /**

@@ -129,13 +129,20 @@ pub fn badge_token(game: &str) -> String {
     format!("makeo:{game}:winner")
 }
 
-/// Who won, from the signed state's `game`: its own `winners`, or a Makeo series' `outcome` (the runtime's result:
-/// `Ranking` pays its first tier, `Void` refunds everyone).
-fn winners_of(game: &Value) -> Vec<Value> {
+/// Who won, from the signed state's `game`, and where their `shares` are: the game's own `winners`; else a Makeo
+/// series' rules state's `winners` (`game.rules`, put back from the finished public view); else the series'
+/// `outcome` (`Ranking` pays its first tier, `Void` refunds everyone). The rules' own winners come before the
+/// outcome because an outcome drops empty tiers: a team of house seats winning would leave the losers first.
+fn winners_of(game: &Value) -> (Vec<Value>, Option<&Value>) {
     if let Some(w) = game.get("winners").and_then(Value::as_array) {
-        return w.clone();
+        return (w.clone(), game.get("shares"));
     }
-    match game.get("outcome") {
+    if let Some(rules) = game.get("rules").filter(|r| r.get("hidden").is_none()) {
+        if let Some(w) = rules.get("winners").and_then(Value::as_array) {
+            return (w.clone(), rules.get("shares"));
+        }
+    }
+    let ranked = match game.get("outcome") {
         Some(o) if o.get("kind").and_then(Value::as_str) == Some("Ranking") => o
             .get("tiers")
             .and_then(Value::as_array)
@@ -145,7 +152,8 @@ fn winners_of(game: &Value) -> Vec<Value> {
             .unwrap_or_default(),
         Some(o) if o.get("kind").and_then(Value::as_str) == Some("Void") => vec![],
         _ => env::panic_str("the game state has no winners array and no outcome"),
-    }
+    };
+    (ranked, None)
 }
 
 fn now_ms() -> u64 {
@@ -274,11 +282,12 @@ impl Pot {
         let parsed: Value = serde_json::from_str(&state).unwrap_or_else(|_| env::panic_str("state is not JSON"));
         require!(parsed.get("finished") == Some(&Value::Bool(true)), "the game has not finished");
         let inner = parsed.get("game").unwrap_or_else(|| env::panic_str("state has no game"));
-        let winners: Vec<String> = winners_of(inner)
+        let (winners, shares_at) = winners_of(inner);
+        let winners: Vec<String> = winners
             .iter()
             .map(|w| w.as_str().map(str::to_lowercase).unwrap_or_else(|| env::panic_str("a winner is a seat address")))
             .collect();
-        let shares: Vec<u128> = match inner.get("shares") {
+        let shares: Vec<u128> = match shares_at {
             None | Some(Value::Null) => vec![1; winners.len()],
             Some(v) => v
                 .as_array()

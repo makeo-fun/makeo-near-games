@@ -382,3 +382,37 @@ fn a_void_series_refunds() {
     ctx("anyone.testnet", 0, 3_000);
     assert!(pot.settle(GAME.into(), 9, HEAD.into(), state, sig).refunded);
 }
+
+#[test]
+fn a_series_rules_winners_come_before_its_outcome() {
+    // NEARWOLF: the village of house seats won, so the rules' winners are empty and the outcome's first
+    // (non-empty) tier is the losing wolves. Counted out: nobody who entered won, so everyone is refunded.
+    let (mut pot, keeper) = setup();
+    let wolf = key(1);
+    enter(&mut pot, &wolf, "wolf.testnet");
+    let state = format!(
+        r#"{{"finished":true,"game":{{"outcome":{{"kind":"Ranking","tiers":[["{w}"]]}},"rules":{{"winners":[]}}}}}}"#,
+        w = seat_of(&wolf)
+    );
+    let sig = sign_step(&keeper, GAME, HEAD, 9, &state);
+    ctx("anyone.testnet", 0, 3_000);
+    let r = pot.settle(GAME.into(), 9, HEAD.into(), state, sig);
+    assert!(r.refunded);
+    assert!(r.winners.is_empty());
+}
+
+#[test]
+fn a_series_rules_shares_split_the_pot() {
+    let (mut pot, keeper) = setup();
+    let (a, b) = (key(1), key(2));
+    enter(&mut pot, &a, "alice.testnet");
+    enter(&mut pot, &b, "bob.testnet");
+    let state = format!(
+        r#"{{"finished":true,"game":{{"outcome":{{"kind":"Ranking","tiers":[["{a}","{b}"]]}},"rules":{{"shares":[3,1],"winners":["{a}","{b}"]}}}}}}"#,
+        a = seat_of(&a), b = seat_of(&b)
+    );
+    let sig = sign_step(&keeper, GAME, HEAD, 9, &state);
+    ctx("anyone.testnet", 0, 3_000);
+    let r = pot.settle(GAME.into(), 9, HEAD.into(), state, sig);
+    assert_eq!(r.payouts[0].amount.0, 2 * STAKE * 3 / 4);
+}
