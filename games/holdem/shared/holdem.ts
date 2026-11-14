@@ -10,6 +10,27 @@ export type Showdown = { shown: boolean[]; names: (string | null)[]; best: (Card
 export type Opening = { card: Card; salt: string };
 export type Options = { player: number; check: boolean; call: number; raise: { min_to: number; max_to: number } | null; allin: number };
 
+/** The sit-and-go around the hands (rules/src/sitgo.rs `view`). */
+export type SitGoView = {
+  players: string[];
+  chips: number[];
+  hands: number;
+  max_hands: number;
+  button: number;
+  seats: number[];
+  hand: HandView | null;
+  next_deal_ms: number;
+  busted: (number | null)[];
+  blinds: [number, number];
+  next_blinds: [number, number];
+  hands_per_level: number;
+  finished: boolean;
+  winners: string[];
+  shares: number[];
+  seq: number;
+  state?: unknown;
+};
+
 /** The rules' `view` of a hand (rules/src/lib.rs `view`), field for field. */
 export type HandView = {
   players: { wallet: string; stack: number }[];
@@ -62,6 +83,9 @@ export function handOf(view: unknown): HandView | null {
   if (!v || typeof v !== "object") return null;
   if (v.hand && v.hand.game && Array.isArray(v.hand.game.players)) return v.hand.game as HandView;
   if (v.game && v.game.hand && v.game.hand.game) return v.game.hand.game as HandView;
+  // A sit-and-go: the contest view's `game.hand`, or the rules' view itself.
+  if (v.game && v.game.hand && Array.isArray(v.game.hand.players)) return v.game.hand as HandView;
+  if (v.hand && Array.isArray(v.hand.players) && typeof v.hand.street === "string") return v.hand as HandView;
   if (Array.isArray(v.players) && typeof v.street === "string") return v as HandView;
   return null;
 }

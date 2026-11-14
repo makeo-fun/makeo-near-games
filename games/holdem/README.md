@@ -1,14 +1,16 @@
 # NEAR Hold'em
 
-No-Limit Texas Hold'em for 2 to 6 seats, made on Makeo: humans and AI players at one table, every
+No-Limit Texas Hold'em sit-and-go for 2 to 6 players, made on Makeo: humans and AI players at one table, every
 hole card dealt by Makeo's keeper (an attested AWS Nitro enclave), every AI decision signed inside
 a TEE on NEAR AI Cloud.
 
 | Path | What |
 |---|---|
-| `rules/src/lib.rs` | The game: blinds, preflop/flop/turn/river betting, fold/check/call/raise/all-in, the no-limit minimum raise (a short all-in does not reopen betting), side pots, showdown, turn timers (out of time: check if free, else fold). Hand ranking and pot splitting use `makeo_runtime::cards` (`best_five`, `settle`). |
+| `rules/src/sitgo.rs` | The contest: a sit-and-go. Everyone pays the same entry and starts with 100 chips; blinds double every 5 hands; it ends when one player holds every chip or after 60 hands, and the chip leader takes the pot. Once finished, the public view carries `winners`, `shares` (final chips) and `state` (the full final rules state) for settlement on NEAR. |
+| `rules/src/lib.rs` | One hand: blinds, preflop/flop/turn/river betting, fold/check/call/raise/all-in, the no-limit minimum raise (a short all-in does not reopen betting), side pots, showdown, turn timers (out of time: check if free, else fold). Hand ranking and pot splitting use `makeo_runtime::cards` (`best_five`, `settle`). |
 | `rules/tests/rules.rs` | 27 rule tests: evaluator vectors, blinds and action order (heads-up and 3–6 handed), min-raise, short all-ins, side pots, split pots and odd chips, all-in runouts, timeouts, secrecy of folded hands, commitments, 3,000 random hands for chip conservation. |
-| `rules/tests/table.rs` | 8 tests of the game at a real Makeo table (buy-in, deal, showdown history, folds, clock, leaving mid-hand, the room seeing only a hash). |
+| `rules/tests/sitgo.rs` | 7 sit-and-go tests, including a paid game that settles and publishes its exact final state (under 50 KB). |
+| `rules/tests/table.rs` | 8 tests of the hand engine at a Makeo table (buy-in, deal, showdown history, folds, clock, leaving mid-hand). |
 | `client/` | The table page: deep-night table, chunky actions (F / C / R / A keys), staged showdowns, and the **Receipt** screen. |
 | `shared/holdem.ts` | The rules' hand view in TypeScript, legal moves, a scripted player, the AI prompt text. |
 | `actor.ts` | The AI seat (SPEC "AI actor protocol"): personas, `legalMoves`, `prompt`, `parseMove`, `fallback`. |
@@ -29,8 +31,9 @@ manifest and publishes it when the table closes, so every hand can be replayed w
 
 - Preview (needs a Makeo sign-in): Free play → Practice vs CPU → choose 1–5 opponents. Play to a
   showdown, then **Receipt**.
-- Paid table (test money in preview): Paid table → Join the table. Open more tabs as more players;
-  add `#autoplay` to a tab's URL (or run `makeoBot(true)` in its console) to let that seat play itself.
+- Free match with friends / Paid match (test money in preview): open the match, share its invite link,
+  join from other tabs, then Start. Add `#autoplay` to a tab's URL (or run `makeoBot(true)` in its
+  console) to let that seat play itself.
 - AI seats locally: `bun actors/src/harness.ts --game games/holdem --ai 3 --human auto` (scripted
   without `NEAR_AI_API_KEY`; NEAR AI Cloud with it). Receipts land in `actors/receipts/`; open the
   page with `?receipts=<url>` or load the file on the Receipt screen.

@@ -1,5 +1,5 @@
-// NEAR Hold'em: the table page. Everything shown comes from the rules' view (room.view); the page
-// never evaluates a hand or decides a pot. Moves go through room.table.act, sealed to the keeper.
+// NEAR Hold'em: a sit-and-go table. Everything shown comes from the rules' view (room.view.game);
+// the page never evaluates a hand or decides a pot. Moves go through room.move, sealed to the keeper.
 import {
   RANK_LABEL,
   SUIT_GLYPH,
@@ -13,14 +13,15 @@ import {
   type Card,
   type HandView,
   type Move,
+  type SitGoView,
 } from "../shared/holdem.js";
 
-type TableView = MakeoTableView<HandView>;
-type Ended = { seats: number[]; players: { wallet: string; stack: number }[]; button: number; game: HandView };
+type MatchView = { phase: string; game: SitGoView | null; [key: string]: unknown };
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const short = (w: string) => (w.length > 12 ? `${w.slice(0, 6)}…${w.slice(-4)}` : w);
+const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 const PERSONAS = ["Vega", "Rook", "Juno", "Atlas", "Nyx"];
 const CPU_STYLE = [
@@ -34,28 +35,24 @@ const COLORS = ["#5cc8ff", "#a78bfa", "#ffd166", "#ff6b5b", "#3ddc97", "#f3eedd"
 
 // ------------------------------------------------------------------ state
 
-let room: MakeoRoom<TableView> | null = null;
+let room: MakeoRoom<MatchView> | null = null;
 let practice = false;
 let cpuCount = 3;
-let menuStep: "root" | "free" | "paid" = "root";
-let sitting = false;
+let menuStep: "root" | "free" = "root";
 let raiseOpen = false;
 let raiseTo = 0;
-let sent: { label: string; hand: number; seq: number; since: number } | null = null;
-let staged: { ended: Ended; changes: Record<string, number>; until: number; hand: number } | null = null;
-let lastSeen: { hand: number; game: HandView } | null = null;
+let sent: { label: string; hands: number; seq: number; since: number } | null = null;
+let lastSeen: { hands: number; game: HandView } | null = null;
+const endLogged = new Set<number>();
 const dealtKeys = new Set<string>();
 const logLines: string[] = [];
 type HandRecord = {
   id: number;
-  seats: number[];
   players: { wallet: string; name: string }[];
   me: number | null;
   commitments: HandView["commitments"];
   mine: { hole: [Card, Card]; openings: { card: Card; salt: string }[] } | null;
-  live: HandView;
-  end: HandView | null;
-  changes: Record<string, number> | null;
+  last: HandView;
 };
 const records = new Map<number, HandRecord>();
 let aiReceipts: any[] = [];
@@ -78,19 +75,22 @@ function toast(text: string, ms = 2600) {
   clearTimeout((toast as any).timer);
   (toast as any).timer = setTimeout(() => t.classList.remove("on"), ms);
 }
-function sheet(html: string) {
-  $("#sheetcard").innerHTML = `${html}<button class="btn ghost" id="sheetclose">Close</button>`;
+function sheet(html: string, closeLabel = "Close") {
+  $("#sheetcard").innerHTML = `${html}${closeLabel ? `<button class="btn ghost" id="sheetclose">${closeLabel}</button>` : ""}`;
   $("#sheet").classList.add("on");
-  $("#sheetclose").onclick = () => $("#sheet").classList.remove("on");
+  const c = document.getElementById("sheetclose");
+  if (c) c.onclick = () => closeSheet();
+}
+function closeSheet() {
+  $("#sheet").classList.remove("on");
 }
 $("#sheet").addEventListener("click", (e) => {
-  if (e.target === $("#sheet")) $("#sheet").classList.remove("on");
+  if (e.target === $("#sheet")) closeSheet();
 });
 function show(screen: "title" | "table" | "receipt") {
   document.body.dataset.screen = screen;
   if (screen === "title") drawTitle();
   if (screen === "receipt") void drawReceipt();
-  drawBar();
   layout();
 }
 
@@ -106,7 +106,7 @@ const cardText = (c: Card) => `${RANK_LABEL[rankOf(c)]}${SUIT_GLYPH[suitOf(c)]}`
 (() => {
   const cv = $("#stars") as HTMLCanvasElement;
   const ctx = cv.getContext("2d")!;
-  const stars = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random() * 0.8, r: Math.random() * 1.2 + 0.2, p: Math.random() * 6 }));
+  const stars = Array.from({ length: 90 }, (_, k) => ({ x: (k * 0.6180339) % 1, y: ((k * 0.7548776) % 1) * 0.8, r: ((k * 37) % 10) / 9 + 0.2, p: k }));
   const draw = (t: number) => {
     const w = (cv.width = innerWidth), h = (cv.height = innerHeight);
     ctx.clearRect(0, 0, w, h);
@@ -132,11 +132,10 @@ const cardText = (c: Card) => `${RANK_LABEL[rankOf(c)]}${SUIT_GLYPH[suitOf(c)]}`
 // ------------------------------------------------------------------ title
 
 const INFO: Record<string, string> = {
-  free: "Free play costs nothing and saves nothing. Practice runs this exact build of the rules in your browser against computer players.",
-  cpu: "You against 1 to 5 computer players, with the same blinds, timers and showdowns as a real table. Labelled practice: no money moves.",
-  paid: "Sit at a table with chips bought for test money in the preview. Leave whenever you like: Makeo's sheet cashes you out.",
-  open: "The public table at this stake. Your buy-in becomes your chips; you sit at the first open seat.",
-  host: "A private table you host: share its link, and start dealing once two or more have sat. Invite AI players by sending them the link.",
+  free: "Free play costs nothing. Practice against computer players in your browser, or invite friends to a free table by link.",
+  cpu: "You against 1 to 5 computer players, with the same blinds, timers and showdowns as a real game. Practice: nothing is saved and no money moves.",
+  friends: "A free table you host. Share the link; friends sign in to sit down and pay nothing. You deal once two or more have joined.",
+  paid: "A sit-and-go for an entry. Everyone starts with 100 chips and blinds double every 5 hands. Whoever holds the most chips when one player has them all, or after 60 hands, takes the pot.",
 };
 
 function drawTitle() {
@@ -144,14 +143,12 @@ function drawTitle() {
   const choice = (id: string, label: string, detail: string, cls = "") =>
     `<div class="choice"><button class="btn ${cls}" data-go="${id}">${label}<small>${detail}</small></button><button class="info" data-info="${id}" aria-label="About ${label}">i</button></div>`;
   if (menuStep === "root") {
-    m.innerHTML = choice("free", "Free play", "Practice against computer players", "") + choice("paid", "Paid table", "Chips for test money · leave any time", "sunny") +
+    m.innerHTML = choice("free", "Free play", "Practice or play friends") + choice("paid", "Paid match", "Sit-and-go · entry from 1", "sunny") +
       `<button class="back-link" data-go="fair">How the cards stay fair</button>`;
-  } else if (menuStep === "free") {
+  } else {
     m.innerHTML = choice("cpu", "Practice vs CPU", "Just you, vs bots") +
       `<div class="stepper">Opponents <button data-cpu="-1" aria-label="Fewer">−</button><b id="cpun">${cpuCount}</b><button data-cpu="1" aria-label="More">+</button></div>` +
-      `<button class="back-link" data-go="root">Back</button>`;
-  } else {
-    m.innerHTML = choice("open", "Join the table", "Blinds 1/2 · buy in 100 chips", "sunny") + choice("host", "Host a private table", "Invite link · you start the deal", "ghost") +
+      choice("friends", "Free match with friends", "Invite link", "ghost") +
       `<button class="back-link" data-go="root">Back</button>`;
   }
   m.querySelectorAll<HTMLElement>("[data-go]").forEach((b) => (b.onclick = () => go(b.dataset.go!)));
@@ -163,41 +160,38 @@ function drawTitle() {
         $("#cpun").textContent = String(cpuCount);
       }),
   );
-  void drawTables();
+  void drawLobbies();
 }
 
 function go(id: string) {
-  if (id === "root" || id === "free" || id === "paid") {
+  if (id === "root" || id === "free") {
     menuStep = id;
     drawTitle();
   } else if (id === "fair") show("receipt");
   else if (id === "cpu") void startPractice();
-  else if (id === "open") void enter(() => Makeo.open({ stake: "0.01" }) as Promise<MakeoRoom<TableView>>);
-  else if (id === "host") void enter(() => Makeo.open({ stake: "0.01", private: true }) as Promise<MakeoRoom<TableView>>);
+  else if (id === "friends") void enter(() => Makeo.open({ with: "friends", seats: 6 }) as Promise<MakeoRoom<MatchView>>);
+  else if (id === "paid") void enter(() => Makeo.open({ with: "money" }) as Promise<MakeoRoom<MatchView>>);
 }
 
-async function drawTables() {
+async function drawLobbies() {
   const box = $("#tables");
-  if (menuStep !== "paid") {
+  if (menuStep !== "root") {
     box.innerHTML = "";
     return;
   }
   try {
-    const games = await Makeo.games();
-    const list = ((await games?.contests.list({ status: "open" })) ?? []) as any[];
-    const tables = list.filter((l) => (l.preset ?? l.format) === "table" && !l.contest?.view?.lobby);
-    if (!tables.length) {
-      box.innerHTML = `<div class="empty">No tables are open right now. Join the table above to open one.</div>`;
+    const list = await Makeo.lobbies();
+    if (!list.length) {
+      box.innerHTML = "";
       return;
     }
-    box.innerHTML = tables
-      .map((l, k) => {
-        const seats = Object.values(l.contest?.view?.seats ?? {}) as any[];
-        const playing = l.contest?.view?.hand ? "hand on" : "between hands";
-        return `<div class="trow"><div><div class="tn">Table · ${esc(l.stake)} ${esc(l.token)} a chip</div><div class="tm">${seats.length} of 6 seated · blinds 1/2 · ${playing}</div></div><button class="btn sm" data-join="${k}">Join</button></div>`;
-      })
-      .join("");
-    box.querySelectorAll<HTMLElement>("[data-join]").forEach((b) => (b.onclick = () => void enter(() => Makeo.join(tables[Number(b.dataset.join)].room) as Promise<MakeoRoom<TableView>>)));
+    box.innerHTML =
+      `<div class="empty">Open matches</div>` +
+      list
+        .slice(0, 6)
+        .map((l, k) => `<div class="trow"><div><div class="tn">Sit-and-go · ${esc(l.stake)} ${esc(l.token)}</div><div class="tm">${l.seats.taken} joined · up to ${l.seats.total}</div></div><button class="btn sm" data-join="${k}">Join</button></div>`)
+        .join("");
+    box.querySelectorAll<HTMLElement>("[data-join]").forEach((b) => (b.onclick = () => void enter(() => Makeo.join(list[Number(b.dataset.join)].room) as Promise<MakeoRoom<MatchView>>)));
   } catch {
     box.innerHTML = "";
   }
@@ -221,10 +215,10 @@ async function startPractice() {
       },
     };
   }
-  await enter(() => Makeo.open({ with: "cpu", seats: cpuCount + 1, seat: 0, controllers }) as Promise<MakeoRoom<TableView>>);
+  await enter(() => Makeo.open({ with: "cpu", seats: cpuCount + 1, seat: 0, controllers }) as Promise<MakeoRoom<MatchView>>);
 }
 
-async function enter(open: () => Promise<MakeoRoom<TableView> | null>) {
+async function enter(open: () => Promise<MakeoRoom<MatchView> | null>) {
   try {
     const next = await open();
     if (!next) return show("title");
@@ -232,24 +226,20 @@ async function enter(open: () => Promise<MakeoRoom<TableView> | null>) {
     room = next;
     practice = next.kind === "practice";
     records.clear();
+    endLogged.clear();
     logLines.length = 0;
-    staged = null;
     lastSeen = null;
     sent = null;
+    closeSheet();
     next.onChange(onView);
     next.onPlayers(() => render());
     next.onLobby(() => render());
     next.onStart(() => show("table"));
-    next.onEnd(() => {
-      toast("The table has closed. Everyone was cashed out.", 4000);
-      room = null;
-      show("title");
-    });
-    next.table?.onHandEnd((hand: any) => onHandEnd(hand));
+    next.onEnd((end) => showResult(end));
     show("table");
     if (next.view) onView(next.view);
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
+    const msg = errText(error);
     if (!/closed|cancel/i.test(msg)) toast(msg);
     show("title");
   }
@@ -258,60 +248,43 @@ async function enter(open: () => Promise<MakeoRoom<TableView> | null>) {
 function myWallet(): string | null {
   return room?.me?.id?.toLowerCase() ?? null;
 }
+function game(): SitGoView | null {
+  return room?.view?.game ?? null;
+}
 
-function onView(view: TableView) {
-  if (!room) return;
-  const me = myWallet();
-  // Sit down once: at the first open seat.
-  if (me && view.seats && !Object.values(view.seats).some((s) => s.wallet.toLowerCase() === me) && view.phase !== "Closed" && !sitting && room.table) {
-    const taken = new Set(Object.keys(view.seats).map(Number));
-    const max = seatCount();
-    let seat = 0;
-    while (taken.has(seat) && seat < max) seat++;
-    if (seat < max) {
-      sitting = true;
-      room.table
-        .sit(seat)
-        .catch((e: unknown) => toast(e instanceof Error ? e.message : String(e)))
-        .finally(() => (sitting = false));
-    }
-  }
-  const h = view.hand;
-  if (h && h.game) {
-    noteHand(h.id, h.seats, h.players, h.game);
-    if (staged && Date.now() >= staged.until) staged = null;
-    // A new hand while a showdown is still on: let the showdown finish only if it isn't our turn.
-    if (staged && staged.hand !== h.id) {
-      const mine = seatOf(h.game, me);
-      if (mine !== null && h.game.turn === mine) staged = null;
-    }
-  }
-  if (sent && (!h || h.id !== sent.hand || (h.game?.seq ?? 0) > sent.seq)) sent = null;
+function onView(view: MatchView) {
+  const g = view?.game;
+  if (g?.hand) noteHand(g, g.hand);
+  if (sent && (!g || g.hands !== sent.hands || g.seq > sent.seq)) sent = null;
   render();
 }
 
-function noteHand(id: number, seats: number[], players: { wallet: string; stack: number }[], game: HandView) {
-  const me = seatOf(game, myWallet());
+function noteHand(g: SitGoView, hand: HandView) {
+  const id = g.hands;
+  const me = seatOf(hand, myWallet());
   let rec = records.get(id);
   if (!rec) {
-    rec = { id, seats, players: players.map((p, i) => ({ wallet: p.wallet, name: nameOf(p.wallet, seats[i]) })), me, commitments: game.commitments, mine: null, live: game, end: null, changes: null };
+    rec = { id, players: hand.players.map((p, i) => ({ wallet: p.wallet, name: nameOf(p.wallet, g.seats[i]) })), me, commitments: hand.commitments, mine: null, last: hand };
     records.set(id, rec);
-    if (records.size > 30) records.delete(Math.min(...records.keys()));
-    log(`<div class="hh">HAND ${id}</div>`);
-    if (me !== null && game.hole[me]) log(`You hold <b>${game.hole[me]!.map(cardText).join(" ")}</b>`);
+    if (records.size > 40) records.delete(Math.min(...records.keys()));
+    log(`<div class="hh">HAND ${id} · BLINDS ${g.blinds[0]}/${g.blinds[1]}</div>`);
+    if (me !== null && hand.hole[me]) log(`You hold <b>${hand.hole[me]!.map(cardText).join(" ")}</b>`);
   }
-  if (me !== null && game.hole[me] && game.openings.hole[me]) rec.mine = { hole: game.hole[me]!, openings: game.openings.hole[me]! };
-  // Narrate what changed since the last view of this hand.
-  if (lastSeen && lastSeen.hand === id) narrate(rec, lastSeen.game, game);
-  rec.live = game;
-  lastSeen = { hand: id, game };
+  if (me !== null && hand.hole[me] && hand.openings.hole[me]) rec.mine = { hole: hand.hole[me]!, openings: hand.openings.hole[me]! };
+  if (lastSeen && lastSeen.hands === id) narrate(rec, lastSeen.game, hand);
+  rec.last = hand;
+  lastSeen = { hands: id, game: hand };
+  if (!isBetting(hand) && !endLogged.has(id)) {
+    endLogged.add(id);
+    logEnd(rec, hand);
+  }
 }
 
 /** "You calls" → "You call": second person for this player. */
 function you(name: string, phrase: string) {
   if (name !== "You") return phrase;
   const [verb, ...rest] = phrase.split(" ");
-  const base: Record<string, string> = { calls: "call", checks: "check", raises: "raise", bets: "bet", is: "are", folds: "fold", shows: "show", wins: "win" };
+  const base: Record<string, string> = { calls: "call", checks: "check", raises: "raise", bets: "bet", is: "are", folds: "fold", shows: "show", wins: "win", takes: "take" };
   return [base[verb] ?? verb, ...rest].join(" ");
 }
 
@@ -327,65 +300,47 @@ function actWords(act: string, to: number) {
   }
 }
 
-function narrate(rec: HandRecord, a: HandView, game: HandView) {
-  for (let i = 0; i < game.players.length; i++) {
-    const d = game.last[i];
+function narrate(rec: HandRecord, a: HandView, hand: HandView) {
+  for (let i = 0; i < hand.players.length; i++) {
+    const d = hand.last[i];
     const was = a.last[i];
-    if (d && JSON.stringify(d) !== JSON.stringify(was) && !/blind/.test(d.act)) log(`<b>${esc(nameAt(rec, i))}</b> ${you(nameAt(rec, i), actWords(d.act, d.to))}`);
-    else if (!d && game.folded[i] && !a.folded[i]) log(`<b>${esc(nameAt(rec, i))}</b> ${you(nameAt(rec, i), "folds")}`);
+    const nm = nameAt(rec, i);
+    if (d && JSON.stringify(d) !== JSON.stringify(was) && !/blind/.test(d.act)) log(`<b>${esc(nm)}</b> ${you(nm, actWords(d.act, d.to))}`);
+    else if (!d && hand.folded[i] && !a.folded[i]) log(`<b>${esc(nm)}</b> ${you(nm, "folds")}`);
   }
-  if (game.board.length > a.board.length) {
-    const b = game.board.length;
+  if (hand.board.length > a.board.length) {
+    const b = hand.board.length;
     const street = a.board.length === 0 && b === 5 ? "Board" : b === 3 ? "Flop" : b === 4 ? "Turn" : a.board.length < 4 ? "Board" : "River";
-    log(`${street}: <b>${game.board.slice(a.board.length).map(cardText).join(" ")}</b>`);
+    log(`${street}: <b>${hand.board.slice(a.board.length).map(cardText).join(" ")}</b>`);
   }
 }
 
-function onHandEnd(hand: { hand: number; changes: Record<string, number>; void: boolean; public_hand?: Ended | null }) {
-  const end = hand.public_hand;
-  if (!end || !end.game) return;
-  const rec = records.get(hand.hand);
-  if (rec) {
-    rec.end = end.game;
-    rec.changes = hand.changes;
-  } else {
-    records.set(hand.hand, {
-      id: hand.hand, seats: end.seats, players: end.players.map((p, i) => ({ wallet: p.wallet, name: nameOf(p.wallet, end.seats[i]) })), me: null,
-      commitments: end.game.commitments, mine: null, live: end.game, end: end.game, changes: hand.changes,
-    });
-  }
-  const r = records.get(hand.hand)!;
-  const g = end.game;
-  if (lastSeen && lastSeen.hand === hand.hand) {
-    narrate(r, lastSeen.game, g);
-    lastSeen = null;
-  }
-  const mineDelta = myWallet() ? hand.changes[myWallet()!] ?? hand.changes[Object.keys(hand.changes).find((k) => k.toLowerCase() === myWallet()) ?? ""] : undefined;
-  if (g.street === "Showdown" && g.showdown) {
-    staged = { ended: end, changes: hand.changes, until: Date.now() + 7200, hand: hand.hand };
-    for (let i = 0; i < g.players.length; i++) if (g.showdown.shown[i]) log(`<span class="sd"><b>${esc(nameAt(r, i))}</b> ${you(nameAt(r, i), "shows")} ${g.hole[i]!.map(cardText).join(" ")} · ${esc(g.showdown.names[i])}</span>`);
-    for (const [k, pot] of g.showdown.pots.entries()) {
-      const who = pot.winners.map((w) => nameAt(r, w)).join(" and ");
+function logEnd(rec: HandRecord, hand: HandView) {
+  const mine = rec.me !== null && hand.result ? hand.result[rec.me] : 0;
+  if (hand.street === "Showdown" && hand.showdown) {
+    for (let i = 0; i < hand.players.length; i++) if (hand.showdown.shown[i] && hand.hole[i]) log(`<span class="sd"><b>${esc(nameAt(rec, i))}</b> ${you(nameAt(rec, i), "shows")} ${hand.hole[i]!.map(cardText).join(" ")} · ${esc(hand.showdown.names[i])}</span>`);
+    for (const [k, pot] of hand.showdown.pots.entries()) {
+      const who = pot.winners.map((w) => nameAt(rec, w)).join(" and ");
       log(`<span class="sd"><b>${esc(who)}</b> ${pot.winners.length > 1 ? "split" : you(who, "wins")} the ${k === 0 ? "pot" : "side pot"} · ${pot.amount}</span>`);
     }
-  } else {
-    const w = g.won ? g.won.findIndex((x, i) => x > 0 && !g.folded[i]) : -1;
+  } else if (hand.won) {
+    const w = hand.won.findIndex((x, i) => x > 0 && !hand.folded[i]);
     if (w >= 0) {
-      log(`<b>${esc(nameAt(r, w))}</b> takes the pot · ${g.pot}`);
-      toast(`${w === r.me ? "You take" : nameAt(r, w) + " takes"} the pot · ${g.pot}`);
+      log(`<b>${esc(nameAt(rec, w))}</b> ${you(nameAt(rec, w), "takes")} the pot · ${hand.pot}`);
+      toast(`${w === rec.me ? "You take" : nameAt(rec, w) + " takes"} the pot · ${hand.pot}`);
     }
   }
-  if (mineDelta) log(`Your hand: <b class="net ${mineDelta > 0 ? "up" : "down"}">${mineDelta > 0 ? "+" : ""}${mineDelta} chips</b>`);
-  render();
+  if (mine) log(`Your hand: <b class="net ${mine > 0 ? "up" : "down"}">${mine > 0 ? "+" : ""}${mine} chips</b>`);
 }
 
 // ------------------------------------------------------------------ names
 
-function nameOf(wallet: string, physical: number): string {
+function nameOf(wallet: string, seat: number): string {
   if (myWallet() && wallet.toLowerCase() === myWallet()) return "You";
   const players = room?.players ?? [];
-  const p = players.find((x) => x.id?.toLowerCase() === wallet.toLowerCase()) ?? players.find((x) => x.seat === physical);
-  return p?.name || `Player ${short(wallet)}`;
+  const p = players.find((x) => x.id?.toLowerCase() === wallet.toLowerCase()) ?? players.find((x) => x.seat === seat);
+  const fromLobby = room?.lobby?.seats?.find((s) => s.id?.toLowerCase() === wallet.toLowerCase())?.name;
+  return p?.name || fromLobby || `Player ${short(wallet)}`;
 }
 function nameAt(rec: HandRecord, i: number) {
   return rec.players[i]?.wallet && myWallet() && rec.players[i].wallet.toLowerCase() === myWallet() ? "You" : rec.players[i]?.name ?? `Seat ${i + 1}`;
@@ -398,16 +353,12 @@ function kindOf(wallet: string, name: string): "you" | "ai" | "cpu" | "human" {
 }
 function colorOf(wallet: string) {
   let h = 0;
-  for (const ch of wallet) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  for (const ch of wallet.toLowerCase()) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return COLORS[h % COLORS.length];
 }
 
 // ------------------------------------------------------------------ layout
 
-function seatCount(): number {
-  const max = room?.lobby?.max;
-  return practice ? cpuCount + 1 : Math.max(2, Math.min(6, typeof max === "number" && max > 0 ? max : 6));
-}
 function layout() {
   const wide = innerWidth >= 1100 && document.body.dataset.screen === "table";
   const tall = innerHeight > innerWidth * 1.15;
@@ -431,11 +382,10 @@ function fitFelt() {
   felt.style.aspectRatio = String(aspect);
 }
 
-/** Where physical seat `s` sits on screen: this player at the bottom, the rest clockwise. */
+/** Where seat `s` sits on screen: this player at the bottom, the rest clockwise. */
 function slotOf(s: number, mySeat: number | null, n: number) {
   const k = (s - (mySeat ?? 0) + n) % n;
-  const angle = 90 + (360 / n) * k;
-  return angle;
+  return 90 + (360 / n) * k;
 }
 function polar(angle: number, fx: number, fy: number, pad: number) {
   const felt = $("#felt").getBoundingClientRect();
@@ -443,39 +393,29 @@ function polar(angle: number, fx: number, fy: number, pad: number) {
   const cx = felt.left - stage.left + felt.width / 2;
   const cy = felt.top - stage.top + felt.height / 2;
   const a = (angle * Math.PI) / 180;
-  return { x: cx + Math.cos(a) * (felt.width / 2 * fx + pad), y: cy + Math.sin(a) * (felt.height / 2 * fy + pad) };
+  return { x: cx + Math.cos(a) * ((felt.width / 2) * fx + pad), y: cy + Math.sin(a) * ((felt.height / 2) * fy + pad) };
 }
 
 // ------------------------------------------------------------------ the table
 
 function render() {
-  if (document.body.dataset.screen !== "table" || !room) {
-    drawBar();
-    return;
-  }
+  drawBar();
+  if (document.body.dataset.screen !== "table" || !room) return;
   fitFelt();
-  const view = room.view;
-  const live = view?.hand && view.hand.game ? view.hand : null;
-  const showing = staged && Date.now() < staged.until ? staged : null;
-  const seats = showing ? showing.ended.seats : live?.seats ?? [];
-  const players = showing ? showing.ended.players : live?.players ?? [];
-  const game: HandView | null = showing ? showing.ended.game : live?.game ?? null;
+  if (room.phase === "lobby" || !game()) return drawLobby();
+  const g = game()!;
+  const hand = g.hand;
   const me = myWallet();
-  const n = seatCount();
-  const mySeatPhysical = (() => {
-    const entry = Object.entries(view?.seats ?? {}).find(([, s]) => s.wallet.toLowerCase() === me);
-    return entry ? Number(entry[0]) : null;
-  })();
-  const myIndex = game ? seatOf(game, me) : null;
-  const handId = showing ? showing.hand : live?.id ?? 0;
-  const rec = records.get(handId);
+  const n = g.players.length;
+  const mySeat = me ? g.players.findIndex((w) => w.toLowerCase() === me) : -1;
+  const myIndex = hand ? seatOf(hand, me) : null;
+  const ended = !!hand && !isBetting(hand);
+  const handId = g.hands;
 
   // Board and pot.
-  const board = game?.board ?? [];
+  const board = hand?.board ?? [];
   const best = new Set<number>();
-  if (showing && game?.showdown) {
-    for (const pot of game.showdown.pots) for (const w of pot.winners) for (const c of game.showdown.best[w] ?? []) best.add(c);
-  }
+  if (ended && hand?.showdown) for (const pot of hand.showdown.pots) for (const w of pot.winners) for (const c of hand.showdown.best[w] ?? []) best.add(c);
   $("#board").innerHTML = [0, 1, 2, 3, 4]
     .map((k) => {
       if (k >= board.length) return `<div class="slot"></div>`;
@@ -483,164 +423,180 @@ function render() {
       const key = `${handId}:b${k}`;
       const fresh = !dealtKeys.has(key);
       dealtKeys.add(key);
-      return cardHTML(c, `${fresh ? "flip" : ""} ${showing ? (best.has(c) ? "win" : "dim") : ""}`);
+      return cardHTML(c, `${fresh ? "flip" : ""} ${ended && hand?.showdown ? (best.has(c) ? "win" : "dim") : ""}`);
     })
     .join("");
-  if (game) {
-    const pots = game.showdown?.pots ?? [];
-    $("#pot").innerHTML = `<span class="stack"></span>Pot ${game.pot}${pots.length > 1 ? `<span class="side">main ${pots[0].amount} · ${pots.slice(1).map((p) => `side ${p.amount}`).join(" · ")}</span>` : ""}`;
+  if (hand) {
+    const pots = hand.showdown?.pots ?? [];
+    $("#pot").innerHTML = `<span class="stack"></span>Pot ${hand.pot}${pots.length > 1 ? `<span class="side">main ${pots[0].amount} · ${pots.slice(1).map((p) => `side ${p.amount}`).join(" · ")}</span>` : ""}`;
   } else $("#pot").innerHTML = "";
 
   // Seats.
-  const seatsEl = $("#seats");
   let html = "";
   for (let s = 0; s < n; s++) {
-    const angle = slotOf(s, mySeatPhysical, n);
+    const angle = slotOf(s, mySeat >= 0 ? mySeat : null, n);
     const pos = polar(angle, 1, 1, 34);
-    const i = seats.indexOf(s);
-    const sitter = view?.seats?.[String(s)];
-    if (i < 0 || !game) {
-      if (sitter) {
-        const nm = nameOf(sitter.wallet, s);
-        const kind = kindOf(sitter.wallet, nm);
-        html += `<div class="seat out" style="left:${pos.x}px;top:${pos.y}px">${plate(sitter.wallet, nm, kind, sitter.stack, false, null)}<div class="did">${game ? "next hand" : "seated"}</div></div>`;
-      } else html += `<div class="emptyseat" style="left:${pos.x}px;top:${pos.y}px">Open seat</div>`;
+    const wallet = g.players[s];
+    const nm = nameOf(wallet, s);
+    const kind = kindOf(wallet, nm);
+    const i = hand ? g.seats.indexOf(s) : -1;
+    if (i < 0 || !hand) {
+      const out = g.chips[s] === 0;
+      html += `<div class="seat folded" style="left:${pos.x}px;top:${pos.y}px">${plate(wallet, nm, kind, g.chips[s], false, out ? "OUT" : null)}<div class="did">${out ? `out · hand ${g.busted[s] ?? ""}` : "waiting"}</div></div>`;
       continue;
     }
-    const p = players[i];
-    const nm = nameOf(p.wallet, s);
-    const kind = kindOf(p.wallet, nm);
-    const turn = !showing && game.turn === i;
-    const folded = game.folded[i];
-    const shown = !!game.showdown?.shown[i];
-    const hole = game.hole[i];
+    const turn = !ended && hand.turn === i;
+    const folded = hand.folded[i];
+    const shown = !!hand.showdown?.shown[i];
+    const hole = hand.hole[i];
     let cards = "";
     if (hole) {
-      const win = showing && game.showdown?.pots.some((pt) => pt.winners.includes(i));
-      cards = hole.map((c, k) => {
-        const key = `${handId}:h${i}:${k}:${shown ? "s" : "o"}`;
-        const fresh = !dealtKeys.has(key);
-        dealtKeys.add(key);
-        return cardHTML(c, `${fresh ? (shown && i !== myIndex ? "flip" : "deal") : ""} ${showing ? (win && best.has(c) ? "win" : "dim") : ""} ${folded ? "sealed" : ""}`);
-      }).join("");
-    } else if (!folded && !(game.street === "Folded")) {
-      cards = [0, 1].map((k) => {
-        const key = `${handId}:h${i}:${k}:b`;
-        const fresh = !dealtKeys.has(key);
-        dealtKeys.add(key);
-        return cardHTML(null, fresh ? "deal" : "");
-      }).join("");
+      const win = ended && hand.showdown?.pots.some((pt) => pt.winners.includes(i));
+      cards = hole
+        .map((c, k) => {
+          const key = `${handId}:h${i}:${k}:${shown ? "s" : "o"}`;
+          const fresh = !dealtKeys.has(key);
+          dealtKeys.add(key);
+          return cardHTML(c, `${fresh ? (shown && i !== myIndex ? "flip" : "deal") : ""} ${ended && hand.showdown ? (win && best.has(c) ? "win" : "dim") : ""} ${folded ? "sealed" : ""}`);
+        })
+        .join("");
+    } else if (!folded && hand.street !== "Folded") {
+      cards = [0, 1]
+        .map((k) => {
+          const key = `${handId}:h${i}:${k}:b`;
+          const fresh = !dealtKeys.has(key);
+          dealtKeys.add(key);
+          return cardHTML(null, fresh ? "deal" : "");
+        })
+        .join("");
     }
-    const stack = game.left[i] + (showing && game.won ? game.won[i] : 0);
-    const d = game.last[i];
-    let under = d ? `<div class="did ${/raise|bet|all/.test(d.act) ? "hot" : ""}">${esc(d.act === "all in" ? "all in" : d.act)}</div>` : `<div class="did"></div>`;
+    const stack = hand.left[i] + (ended && hand.won ? hand.won[i] : 0);
+    const d = hand.last[i];
+    let under = d ? `<div class="did ${/raise|bet|all/.test(d.act) ? "hot" : ""}">${esc(d.act)}</div>` : `<div class="did"></div>`;
     if (folded) under = `<div class="did">folded</div>`;
-    if (showing) {
-      const delta = showing.changes[p.wallet] ?? showing.changes[p.wallet.toLowerCase()] ?? 0;
-      under = `<div class="hn">${esc(game.showdown?.names[i] ?? "")}</div>${delta ? `<div class="net ${delta > 0 ? "up" : "down"}">${delta > 0 ? "+" : ""}${delta}</div>` : ""}`;
+    if (ended) {
+      const delta = hand.result?.[i] ?? 0;
+      under = `<div class="hn">${esc(hand.showdown?.names[i] ?? "")}</div>${delta ? `<div class="net ${delta > 0 ? "up" : "down"}">${delta > 0 ? "+" : ""}${delta}</div>` : ""}`;
     }
-    html += `<div class="seat ${kind === "you" ? "me" : ""} ${turn ? "turn" : ""} ${folded ? "folded" : ""}" style="left:${pos.x}px;top:${pos.y}px" data-i="${i}">
-      <div class="cards">${cards}</div>${plate(p.wallet, nm, kind, stack, turn, game.all_in[i] ? "ALL IN" : null)}${under}</div>`;
-    // Chips in front of the seat, and the button.
-    if (!showing && game.street_bet[i] > 0 && isBetting(game)) {
-      const b = polar(angle, 0.66, 0.8, 0);
-      html += `<div class="bet" style="left:${b.x}px;top:${b.y}px"><i></i>${game.street_bet[i]}</div>`;
+    html += `<div class="seat ${kind === "you" ? "me" : ""} ${turn ? "turn" : ""} ${folded ? "folded" : ""}" style="left:${pos.x}px;top:${pos.y}px">
+      <div class="cards">${cards}</div>${plate(wallet, nm, kind, stack, turn, hand.all_in[i] && !ended ? "ALL IN" : null)}${under}</div>`;
+    if (!ended && hand.street_bet[i] > 0) {
+      // Top and bottom seats put their chips beside the line to the pot, clear of the pot and labels.
+      const vertical = Math.abs(Math.cos((angle * Math.PI) / 180)) < 0.35;
+      const b = polar(angle, 0.66, vertical ? 0.62 : 0.8, 0);
+      if (vertical) b.x += 74;
+      html += `<div class="bet" style="left:${b.x}px;top:${b.y}px"><i></i>${hand.street_bet[i]}</div>`;
     }
-    if (i === game.button) {
+    if (i === hand.button) {
       const b = polar(angle + 360 / n / 3.2, 0.82, 0.78, 0);
       html += `<div class="dealer" style="left:${b.x}px;top:${b.y}px">D</div>`;
     }
   }
-  seatsEl.innerHTML = html;
+  $("#seats").innerHTML = html;
 
-  // How a showdown ended, under the board.
-  let banner = "";
-  if (showing && game?.showdown) {
-    const r = records.get(showing.hand);
-    const main = game.showdown.pots[0];
-    const who = main.winners.map((w) => (r ? nameAt(r, w) : `Seat ${w + 1}`)).join(" & ");
-    const what = game.showdown.names[main.winners[0]] ?? "";
-    const myDelta = me ? Object.entries(showing.changes).find(([k]) => k.toLowerCase() === me)?.[1] : undefined;
-    banner = `<div class="banner"><div class="w">${esc(who)} ${main.winners.length > 1 ? "split the pot" : who === "You" ? "win" : "wins"} · ${esc(what)}</div>${myDelta ? `<div class="m net ${myDelta > 0 ? "up" : "down"}">${myDelta > 0 ? "+" : ""}${myDelta} chips for you</div>` : ""}</div>`;
-  }
-
-  // The note under the board.
+  // How a hand ended, under the board.
   let note = "";
-  if (view?.phase === "Lobby") note = lobbyNote(view);
-  else if (!game) note = Object.keys(view?.seats ?? {}).length < 2 ? "Waiting for another player to sit down" : "Shuffling the next hand…";
-  else if (game.street === "Folded") note = "";
-  else if (!showing && game.turn === null && isBetting(game) === false) note = "";
-  $("#note").innerHTML = banner || note;
-  $("#note").querySelector<HTMLElement>("#copylink")?.addEventListener("click", () => {
-    void navigator.clipboard?.writeText(location.href).then(() => toast("Invite link copied"));
-  });
-  $("#note").querySelector<HTMLElement>("#startbtn")?.addEventListener("click", () => {
-    room?.table?.start().catch((e: unknown) => toast(e instanceof Error ? e.message : String(e)));
-  });
-
-  drawDock(game && !showing ? game : null, myIndex);
-  if (autoplay && live && live.game && !sent && !autoTimer) {
-    const g = live.game;
-    const mine = seatOf(g, me);
-    if (mine !== null && g.options?.player === mine && isBetting(g)) {
-      autoTimer = setTimeout(() => {
-        autoTimer = null;
-        const now = room?.view?.hand?.game;
-        if (!now || now.seq !== g.seq) return render();
-        const move = scriptedMove(now, mine, autoRandom, { aggression: 0.55, looseness: 0.55 });
-        if (move) void act(move, move.move);
-      }, 900);
+  if (ended && hand) {
+    const rec = records.get(handId);
+    const name = (i: number) => (rec ? nameAt(rec, i) : nameOf(hand.players[i].wallet, g.seats[i]));
+    let line = "";
+    if (hand.showdown) {
+      const main = hand.showdown.pots[0];
+      const who = main.winners.map(name).join(" & ");
+      line = `${esc(who)} ${main.winners.length > 1 ? "split the pot" : who === "You" ? "win" : "wins"} · ${esc(hand.showdown.names[main.winners[0]] ?? "")}`;
+    } else if (hand.won) {
+      const w = hand.won.findIndex((x, i) => x > 0 && !hand.folded[i]);
+      if (w >= 0) line = `${esc(name(w))} ${name(w) === "You" ? "take" : "takes"} the pot · ${hand.pot}`;
     }
+    const mine = myIndex !== null && hand.result ? hand.result[myIndex] : 0;
+    note = `<div class="banner"><div class="w">${line}</div>${mine ? `<div class="m net ${mine > 0 ? "up" : "down"}">${mine > 0 ? "+" : ""}${mine} chips for you</div>` : ""}${g.finished ? "" : `<div class="m" style="color:var(--muted)">Next hand in <span id="nextdeal"></span></div>`}</div>`;
   }
+  $("#note").innerHTML = note;
+
+  drawDock(hand && !ended ? hand : null, myIndex);
   drawLog();
-  drawBar();
+  if (autoplay && hand && !ended && !sent && !autoTimer && myIndex !== null && hand.options?.player === myIndex) {
+    const seq = g.seq;
+    autoTimer = setTimeout(() => {
+      autoTimer = null;
+      const now = game();
+      if (!now?.hand || now.seq !== seq) return render();
+      const move = scriptedMove(now.hand, myIndex, autoRandom, { aggression: 0.55, looseness: 0.55 });
+      if (move) void act(move, move.move);
+    }, 900);
+  }
 }
 
 function plate(wallet: string, name: string, kind: string, stack: number, turn: boolean, flag: string | null) {
   const tag = kind === "you" ? `<span class="tag you">You</span>` : kind === "ai" ? `<span class="tag ai">AI · TEE</span>` : kind === "cpu" ? `<span class="tag cpu">CPU</span>` : "";
-  return `<div class="plate">${turn ? `<span class="clock"></span>` : ""}<span class="av" style="--c:${colorOf(wallet)}">${esc(name.slice(0, 1).toUpperCase())}</span><div><div class="nm">${esc(name)}</div><div class="sk">${flag ?? stack}</div></div>${tag}</div>`;
+  const status = room?.players.find((p) => p.id?.toLowerCase() === wallet.toLowerCase())?.status;
+  const away = status && status !== "connected" && kind !== "cpu" ? ` <span style="color:var(--dim);font-size:10px">${esc(status)}</span>` : "";
+  return `<div class="plate">${turn ? `<span class="clock"></span>` : ""}<span class="av" style="--c:${colorOf(wallet)}">${esc(name.slice(0, 1).toUpperCase())}</span><div><div class="nm">${esc(name)}${away}</div><div class="sk">${flag ?? stack}</div></div>${tag}</div>`;
 }
 
-function lobbyNote(view: TableView) {
-  const seated = Object.keys(view.seats ?? {}).length;
-  const host = view.host?.toLowerCase() === myWallet();
-  const link = `<button class="btn sm ghost" id="copylink">Copy invite link</button>`;
-  if (host) return `<div style="display:grid;gap:8px;justify-items:center"><div><b>${seated}</b> seated · up to 6</div><div style="display:flex;gap:8px">${link}<button class="btn sm" id="startbtn" ${seated >= 2 ? "" : "disabled"}>Start with ${seated}</button></div>${seated < 2 ? "<div>Needs 2 to start · 1 more</div>" : ""}</div>`;
-  const hostName = view.host ? nameOf(view.host, -1) : "the host";
-  return `<div style="display:grid;gap:8px;justify-items:center"><div>Waiting for <b>${esc(hostName)}</b> to start · ${seated} seated</div>${link}</div>`;
+/** The room's lobby, on the felt: who has joined, the invite link, Join or Start. */
+function drawLobby() {
+  if (!room) return;
+  const L = room.lobby;
+  $("#board").innerHTML = "";
+  $("#pot").innerHTML = "";
+  $("#seats").innerHTML = "";
+  const joined = L.seats.filter((s) => s.id).length;
+  const kind = L.entry ? `Paid match · ${esc(L.entry.stake)} ${esc(L.entry.token)} · ${L.access === "open" ? "discoverable" : "invite only"}` : "Free match · invite only";
+  const hostName = L.host ? nameOf(L.host, -1) : "the host";
+  let action = "";
+  if (!room.me) action = `<button class="btn" id="joinbtn">${L.entry ? `Join · ${esc(L.entry.stake)} ${esc(L.entry.token)}` : "Join"}</button>`;
+  else if (room.me.host) action = `<button class="btn" id="startbtn" ${L.canStart ? "" : "disabled"}>Start with ${joined}</button>`;
+  else action = `<div class="status">Waiting for <b>${esc(hostName)}</b> to start · ${joined} joined</div>`;
+  const need = Math.max(0, L.min - joined);
+  $("#note").innerHTML = `<div style="display:grid;gap:10px;justify-items:center;max-width:440px">
+    <div class="kicker">${kind}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">${L.seats.map((s) => `<span class="chip ${s.id ? "ok" : ""}">${s.id ? esc(s.id.toLowerCase() === myWallet() ? "You" : s.name ?? short(s.id)) : "Open seat"}${s.id && s.id === L.host ? " · host" : ""}</span>`).join("")}</div>
+    <div>${joined} joined · up to ${L.max}${need ? ` · needs ${L.min} to start · ${need} more` : ""}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">${action}<button class="btn ghost sm" id="copylink">Copy invite link</button></div>
+    ${L.deadline ? `<div class="status">Entries close in <span id="lobbyclock"></span></div>` : ""}</div>`;
+  const copy = document.getElementById("copylink");
+  if (copy) copy.onclick = () => void navigator.clipboard?.writeText(room?.link ?? location.href).then(() => toast("Invite link copied"));
+  const start = document.getElementById("startbtn");
+  if (start) start.onclick = () => room?.start().catch((e: unknown) => toast(errText(e)));
+  const join = document.getElementById("joinbtn");
+  if (join) join.onclick = () => room?.pay().catch((e: unknown) => toast(errText(e)));
+  $("#dock").innerHTML = `<div class="acts"><button class="btn sm ghost" id="leavebtn">Leave</button></div>`;
+  $("#leavebtn").onclick = () => leave();
 }
 
 // ------------------------------------------------------------------ my moves
 
-function drawDock(game: HandView | null, me: number | null) {
+function drawDock(hand: HandView | null, me: number | null) {
   const dock = $("#dock");
-  const o = game?.options;
-  const mine = !!(game && o && me !== null && o.player === me && isBetting(game));
+  const o = hand?.options;
+  const mine = !!(hand && o && me !== null && o.player === me);
   if (!mine) raiseOpen = false;
   let status = "";
-  if (game && isBetting(game) && game.turn !== null && !mine) {
-    const r = records.get(room?.view?.hand?.id ?? -1);
-    const who = r ? nameAt(r, game.turn) : "Next player";
-    status = `<b>${esc(who)}</b> is thinking<span id="secs"></span>`;
-  } else if (game && me !== null && game.folded[me]) status = "You folded. Your cards stay sealed.";
+  if (hand && hand.turn !== null && !mine) {
+    const rec = records.get(game()?.hands ?? -1);
+    status = `<b>${esc(rec ? nameAt(rec, hand.turn) : "Next player")}</b> is thinking<span id="secs"></span>`;
+  } else if (hand && me !== null && hand.folded[me]) status = "You folded. Your cards stay sealed.";
+  else if (game()?.finished) status = "The game is over.";
   if (sent) status = Date.now() - sent.since > 1500 ? "The dealer is checking your move…" : "Sending…";
   if (!mine) {
-    dock.innerHTML = `<div class="status">${status}</div><div class="acts"><button class="btn sm ghost" id="leavebtn">Leave table</button><button class="btn sm ghost" id="rcptbtn">Receipt</button></div>`;
+    dock.innerHTML = `<div class="status">${status}</div><div class="acts"><button class="btn sm ghost" id="leavebtn">Leave</button><button class="btn sm ghost" id="rcptbtn">Receipt</button></div>`;
   } else {
-    const busy = (l: string) => (sent ? (sent.label === l ? "busy" : "") : "");
+    const busy = (l: string) => (sent && sent.label === l ? "busy" : "");
     const dis = sent ? "disabled" : "";
     const range = o!.raise;
     if (range && (raiseTo < range.min_to || raiseTo > range.max_to)) raiseTo = range.min_to;
     const callBtn = o!.check
       ? `<button class="btn ${busy("check")}" data-act="check" ${dis}>Check<span class="k">C</span></button>`
       : `<button class="btn ${busy("call")}" data-act="call" ${dis}>Call ${o!.call}<span class="k">C</span></button>`;
-    const raiseWord = game!.current_bet === 0 ? "Bet" : "Raise";
-    const raisebox = raiseOpen && range
-      ? `<div class="raisebox"><div class="row"><div class="amt" id="ramt">${raiseTo}</div><input type="range" id="rslider" min="${range.min_to}" max="${range.max_to}" step="1" value="${raiseTo}" aria-label="${raiseWord} to"></div>
-         <div class="presets">${presets(game!, o!).map(([l, v]) => `<button data-pre="${v}" class="${v === raiseTo ? "on" : ""}">${l}</button>`).join("")}</div>
+    const raiseWord = hand!.current_bet === 0 ? "Bet" : "Raise";
+    const raisebox =
+      raiseOpen && range
+        ? `<div class="raisebox"><div class="row"><div class="amt" id="ramt">${raiseTo}</div><input type="range" id="rslider" min="${range.min_to}" max="${range.max_to}" step="1" value="${raiseTo}" aria-label="${raiseWord} to"></div>
+         <div class="presets">${presets(hand!, o!).map(([l, v]) => `<button data-pre="${v}" class="${v === raiseTo ? "on" : ""}">${l}</button>`).join("")}</div>
          <div class="row"><button class="btn ghost sm" id="rcancel" style="flex:1">Back</button><button class="btn sunny ${busy("raise")}" id="rgo" style="flex:2" ${dis}>${raiseTo === range.max_to ? "All in" : `${raiseWord} to ${raiseTo}`}</button></div></div>`
-      : "";
-    dock.innerHTML = `<div class="status">${status || `Your move · <span id="secs"></span>`}</div>${raisebox}
+        : "";
+    dock.innerHTML = `<div class="status">${status || `Your move<span id="secs"></span>`}</div>${raisebox}
       <div class="acts" ${raiseOpen ? 'style="display:none"' : ""}>
         ${o!.check ? "" : `<button class="btn ember ${busy("fold")}" data-act="fold" ${dis}>Fold<span class="k">F</span></button>`}
         ${callBtn}
@@ -651,12 +607,12 @@ function drawDock(game: HandView | null, me: number | null) {
     const ropen = dock.querySelector<HTMLElement>("#ropen");
     if (ropen) ropen.onclick = () => ((raiseOpen = true), render());
     const slider = dock.querySelector<HTMLInputElement>("#rslider");
-    if (slider) slider.oninput = () => {
-      raiseTo = Number(slider.value);
-      $("#ramt").textContent = String(raiseTo);
-      const go = $("#rgo");
-      go.textContent = raiseTo === range!.max_to ? "All in" : `${raiseWord} to ${raiseTo}`;
-    };
+    if (slider)
+      slider.oninput = () => {
+        raiseTo = Number(slider.value);
+        $("#ramt").textContent = String(raiseTo);
+        $("#rgo").textContent = raiseTo === range!.max_to ? "All in" : `${raiseWord} to ${raiseTo}`;
+      };
     dock.querySelectorAll<HTMLElement>("[data-pre]").forEach((b) => (b.onclick = () => ((raiseTo = Number(b.dataset.pre)), render())));
     const rc = dock.querySelector<HTMLElement>("#rcancel");
     if (rc) rc.onclick = () => ((raiseOpen = false), render());
@@ -664,81 +620,128 @@ function drawDock(game: HandView | null, me: number | null) {
     if (rg) rg.onclick = () => void act(raiseTo === range!.max_to ? { move: "allin" } : { move: "raise", to: raiseTo }, "raise");
   }
   const lb = dock.querySelector<HTMLElement>("#leavebtn");
-  if (lb) lb.onclick = () => void leaveTable();
+  if (lb) lb.onclick = () => leave();
   const rb = dock.querySelector<HTMLElement>("#rcptbtn");
   if (rb) rb.onclick = () => show("receipt");
   if (!raiseOpen) document.documentElement.style.setProperty("--dockh", `${dock.offsetHeight || 150}px`);
 }
 
-function presets(game: HandView, o: NonNullable<HandView["options"]>): [string, number][] {
+function presets(hand: HandView, o: NonNullable<HandView["options"]>): [string, number][] {
   const r = o.raise!;
-  const potAfter = game.pot + o.call;
-  const at = (f: number) => Math.max(r.min_to, Math.min(r.max_to, game.current_bet + Math.round(potAfter * f)));
+  const potAfter = hand.pot + o.call;
+  const at = (f: number) => Math.max(r.min_to, Math.min(r.max_to, hand.current_bet + Math.round(potAfter * f)));
   const list: [string, number][] = [["Min", r.min_to], ["½ pot", at(0.5)], ["¾ pot", at(0.75)], ["Pot", at(1)], ["All in", r.max_to]];
   return list.filter(([, v], k) => k === 0 || k === list.length - 1 || (v > r.min_to && v < r.max_to));
 }
 
 async function act(move: Move, label: string) {
-  const view = room?.view;
-  const h = view?.hand;
-  if (!room?.table || !h || !h.game || sent) return;
-  sent = { label, hand: h.id, seq: h.game.seq, since: Date.now() };
+  const g = game();
+  if (!room || !g?.hand || sent || room.pending) return;
+  sent = { label, hands: g.hands, seq: g.seq, since: Date.now() };
   raiseOpen = false;
   render();
   try {
-    await room.table.act(move);
+    await room.move(move);
   } catch (error) {
     sent = null;
-    toast(error instanceof Error ? error.message : String(error));
+    toast(errText(error));
   }
   render();
 }
 
 addEventListener("keydown", (e) => {
-  if (document.body.dataset.screen !== "table" || e.target instanceof HTMLInputElement && e.key !== "Enter") return;
+  if (document.body.dataset.screen !== "table" || (e.target instanceof HTMLInputElement && e.key !== "Enter")) return;
   const k = e.key.toLowerCase();
   const pick = (sel: string) => document.querySelector<HTMLButtonElement>(sel)?.click();
   if (k === "f") pick('[data-act="fold"]');
-  else if (k === "c") pick('[data-act="check"]') ?? pick('[data-act="call"]');
-  else if (k === "r") pick("#ropen");
+  else if (k === "c") {
+    pick('[data-act="check"]');
+    pick('[data-act="call"]');
+  } else if (k === "r") pick("#ropen");
   else if (k === "a") pick('[data-act="allin"]');
   else if (k === "enter") pick("#rgo");
   else if (k === "escape") pick("#rcancel");
 });
 
-async function leaveTable() {
-  if (!room) return show("title");
-  try {
-    const out = room.table ? await room.table.leave() : { left: true };
-    if (out.left) {
-      room.leave();
-      room = null;
-      show("title");
-    }
-  } catch (error) {
-    toast(error instanceof Error ? error.message : String(error));
-  }
+function leave() {
+  if (room && room.phase === "playing" && !practice && !confirm("Leave the game? Your seat stays in: each of your turns checks or folds on the clock.")) return;
+  room?.leave();
+  room = null;
+  show("title");
+}
+
+// ------------------------------------------------------------------ the end
+
+function showResult(end: MakeoEnd) {
+  const g = game();
+  const outcome = end.outcome;
+  const me = myWallet();
+  let head = "Game over";
+  let rows = "";
+  const seatOfWallet = (w: string) => (g ? g.players.findIndex((x) => x.toLowerCase() === w.toLowerCase()) : -1);
+  if (outcome && outcome.kind === "Ranking") {
+    const tiers = outcome.tiers;
+    const won = !!me && tiers[0]?.some((w) => w.toLowerCase() === me);
+    head = won ? (tiers[0].length > 1 ? "You split the pot" : "You win the pot") : `${esc(nameOf(tiers[0][0], seatOfWallet(tiers[0][0])))} wins`;
+    let place = 1;
+    rows = tiers
+      .map((tier) => {
+        const r = tier
+          .map((w) => {
+            const s = seatOfWallet(w);
+            const chips = g && s >= 0 ? `${g.chips[s]} chips${g.busted[s] ? ` · out in hand ${g.busted[s]}` : ""}` : "";
+            return `<div class="trow"><b style="width:28px">${place}</b><div><div class="tn">${esc(nameOf(w, s))}</div><div class="tm">${chips}</div></div></div>`;
+          })
+          .join("");
+        place += tier.length;
+        return r;
+      })
+      .join("");
+  } else if (outcome && outcome.kind === "Void") head = "Game called off";
+  const voidLine = outcome && outcome.kind === "Void" ? `<p>${esc(outcome.reason)} · every entry was refunded.</p>` : "";
+  const paid = room?.kind === "paid";
+  const payoutLine = end.payout?.error || (end.payout?.finalAfter && end.payout.finalAfter < Date.now() && end.payout.phase !== "settled") ? `<p>Payout delayed.</p>` : "";
+  sheet(
+    `<div class="kicker">${practice ? "Practice" : paid ? "Paid match" : "Free match"}</div><h3>${head}</h3>${voidLine}${payoutLine}<div style="display:grid;gap:6px">${rows}</div>
+     ${g ? `<p>${g.hands} hands played. The final state is public: open the Receipt to check every opened card and the settlement data.</p>` : ""}
+     <div style="display:flex;gap:8px;flex-wrap:wrap">${paid ? `<button class="btn sunny" id="payout">See payout</button>` : ""}<button class="btn zip" id="endrcpt">Receipt</button><button class="btn" id="again">Play again</button></div>`,
+    "",
+  );
+  const pay = document.getElementById("payout");
+  if (pay) pay.onclick = async () => void (await Makeo.games())?.contests.showResult(room?.id ?? "");
+  $("#endrcpt").onclick = () => {
+    closeSheet();
+    show("receipt");
+  };
+  $("#again").onclick = () => {
+    closeSheet();
+    room?.leave();
+    room = null;
+    show("title");
+  };
 }
 
 // ------------------------------------------------------------------ clock
 
 function tick() {
-  const g = room?.view?.hand?.game;
-  if (g && g.turn !== null && g.deadline_ms && document.body.dataset.screen === "table") {
-    const total = 25_000;
-    const left = Math.max(0, g.deadline_ms - Date.now());
-    const p = Math.min(1, left / total);
+  const g = game();
+  const hand = g?.hand;
+  if (hand && hand.turn !== null && hand.deadline_ms && document.body.dataset.screen === "table") {
+    const left = Math.max(0, hand.deadline_ms - Date.now());
     const clock = document.querySelector<HTMLElement>(".seat.turn .clock");
     if (clock) {
-      clock.style.setProperty("--p", String(p));
+      clock.style.setProperty("--p", String(Math.min(1, left / 25_000)));
       clock.classList.toggle("low", left < 6000);
     }
     const secs = document.getElementById("secs");
     if (secs) secs.textContent = ` · ${Math.ceil(left / 1000)}s`;
   }
-  if (staged && Date.now() >= staged.until) {
-    staged = null;
-    render();
+  const nd = document.getElementById("nextdeal");
+  if (nd && g?.next_deal_ms) nd.textContent = `${Math.max(0, Math.ceil((g.next_deal_ms - Date.now()) / 1000))}s`;
+  const lc = document.getElementById("lobbyclock");
+  if (lc && room?.lobby.deadline) {
+    const m = Math.max(0, room.lobby.deadline - Date.now());
+    lc.textContent = `${Math.floor(m / 60000)}:${String(Math.floor((m % 60000) / 1000)).padStart(2, "0")}`;
   }
   requestAnimationFrame(tick);
 }
@@ -748,7 +751,7 @@ requestAnimationFrame(tick);
 
 function log(html: string) {
   logLines.push(html);
-  if (logLines.length > 160) logLines.shift();
+  if (logLines.length > 200) logLines.shift();
 }
 function drawLog() {
   const el = $("#loglines");
@@ -759,9 +762,13 @@ function drawBar() {
   const info = $("#tableinfo");
   const btns = $("#barbtns");
   const screen = document.body.dataset.screen;
+  const g = game();
   if (screen === "table" && room) {
-    const h = room.view?.hand;
-    info.innerHTML = `<b>${practice ? "Practice" : room.view?.lobby ? "Private table" : "Table"}</b><span class="sep"></span>Blinds 1/2<span class="sep"></span>${h ? `Hand ${h.id}` : "Between hands"}${practice ? '<span class="chip">no money</span>' : ""}${autoplay ? '<span class="chip ai">autoplay</span>' : ""}`;
+    const kind = practice ? "Practice" : room.lobby?.entry ? "Paid match" : "Free match";
+    const level = g
+      ? `<span class="sep"></span>Blinds ${g.blinds[0]}/${g.blinds[1]}${g.next_blinds[1] !== g.blinds[1] && !g.finished ? ` · ${g.next_blinds[0]}/${g.next_blinds[1]} next hand` : ""}<span class="sep"></span>Hand ${g.hands} of ${g.max_hands}`
+      : "";
+    info.innerHTML = `<b>${kind}</b>${level}${practice ? '<span class="chip">no money</span>' : ""}${autoplay ? '<span class="chip ai">autoplay</span>' : ""}`;
     btns.innerHTML = "";
   } else if (screen === "receipt") {
     info.innerHTML = `<b>Receipt</b>`;
@@ -789,59 +796,61 @@ async function drawReceipt() {
   let good = 0;
   const handHTML: string[] = [];
   for (const r of hands) {
-    const g = r.end ?? r.live;
+    const h = r.last;
     const domain = r.commitments.domain;
     const rows: string[] = [];
-    // Board: opened as dealt.
-    for (const [k, o] of (g.openings?.board ?? []).entries()) {
+    for (const [k, o] of (h.openings?.board ?? []).entries()) {
       const ok = (await commitOf(domain, o.card, o.salt)) === r.commitments.board[k];
       checks++;
       if (ok) good++;
       rows.push(`<div class="crow"><span>Board ${k + 1}</span><span class="minicards">${cardHTML(o.card)}</span><span class="h">${esc(r.commitments.board[k])}</span><span class="${ok ? "ok" : "no"}">${ok ? "✓ matches" : "✗ mismatch"}</span></div>`);
     }
-    for (let k = (g.openings?.board ?? []).length; k < 5; k++) rows.push(`<div class="crow"><span>Board ${k + 1}</span><span></span><span class="h">${esc(r.commitments.board[k])}</span><span class="seal">never dealt · sealed</span></div>`);
-    // Hole cards: shown hands and this player's own; folded hands stay sealed.
+    for (let k = (h.openings?.board ?? []).length; k < 5; k++) rows.push(`<div class="crow"><span>Board ${k + 1}</span><span></span><span class="h">${esc(r.commitments.board[k])}</span><span class="seal">never dealt · sealed</span></div>`);
     for (let i = 0; i < r.players.length; i++) {
-      const opened = g.openings?.hole?.[i] ?? (i === r.me ? r.mine?.openings : null);
+      const opened = h.openings?.hole?.[i] ?? (i === r.me ? r.mine?.openings : null);
       const nm = nameAt(r, i);
       if (opened) {
-        const oks = await Promise.all(opened.map((o, j) => commitOf(domain, o.card, o.salt).then((h) => h === r.commitments.hole[i][j])));
+        const oks = await Promise.all(opened.map((o, j) => commitOf(domain, o.card, o.salt).then((x) => x === r.commitments.hole[i][j])));
         const ok = oks.every(Boolean);
         checks++;
         if (ok) good++;
-        const why = g.showdown?.shown[i] ? "shown down" : "your own, opened to you only";
+        const why = h.showdown?.shown[i] ? "shown down" : "your own, opened to you only";
         rows.push(`<div class="crow"><span>${esc(nm)}</span><span class="minicards">${opened.map((o) => cardHTML(o.card)).join("")}</span><span class="h">${esc(why)} · ${esc(r.commitments.hole[i][0].slice(0, 18))}…</span><span class="${ok ? "ok" : "no"}">${ok ? "✓ matches" : "✗ mismatch"}</span></div>`);
       } else {
-        rows.push(`<div class="crow"><span>${esc(nm)}</span><span class="minicards">${cardHTML(null)}${cardHTML(null)}</span><span class="h">${esc(r.commitments.hole[i][0].slice(0, 18))}…</span><span class="seal">${g.folded[i] ? "folded · never opened" : "sealed"}</span></div>`);
+        rows.push(`<div class="crow"><span>${esc(nm)}</span><span class="minicards">${cardHTML(null)}${cardHTML(null)}</span><span class="h">${esc(r.commitments.hole[i][0].slice(0, 18))}…</span><span class="seal">${h.folded[i] ? "folded · never opened" : "sealed"}</span></div>`);
       }
     }
-    const result = g.street === "Showdown" ? g.showdown?.names.filter(Boolean).length + " hands shown" : g.street === "Folded" ? "won without a showdown" : "in play";
-    handHTML.push(`<details class="hand" ${r === hands[0] ? "open" : ""}><summary><b>Hand ${r.id}</b><span class="chip">${esc(result)}</span><span class="minicards">${(g.board ?? []).map((c) => cardHTML(c)).join("")}</span></summary><div class="body">${rows.join("")}</div></details>`);
+    const result = h.street === "Showdown" ? `${h.showdown?.names.filter(Boolean).length} hands shown` : h.street === "Folded" ? "won without a showdown" : "in play";
+    handHTML.push(`<details class="hand" ${r === hands[0] ? "open" : ""}><summary><b>Hand ${r.id}</b><span class="chip">${esc(result)}</span><span class="minicards">${(h.board ?? []).map((c) => cardHTML(c)).join("")}</span></summary><div class="body">${rows.join("")}</div></details>`);
   }
   const allOk = checks > 0 && good === checks;
-  const ai = aiReceiptsHTML();
+  const g = game();
+  const settle = g?.finished
+    ? `<div class="hashbox"><span class="k">Winners</span><span class="val">${g.winners.map((w) => esc(w)).join("<br>")}</span><span class="k">Shares (chips)</span><span class="val">${g.shares.join(" · ")}</span><span class="k">Final state</span><span class="val">${esc(await sha256Hex(JSON.stringify(g.state ?? null)))} · SHA-256 of the published JSON</span></div>`
+    : `<div class="empty">When the game ends, its winners, their chip shares and the full final state are published here and settle the pot.</div>`;
   wrap.innerHTML = `
-    <div class="rh"><div><div class="kicker">Receipt</div><h1>Check the deal yourself</h1><p>The keeper, an attested AWS Nitro enclave, deals every hand. At the deal it publishes a salted SHA-256 commitment to each hole card and each of the five board cards, before anyone bets. Below, your browser recomputes every card that was opened. Folded hands are never opened.</p></div>
+    <div class="rh"><div><div class="kicker">Receipt</div><h1>Check the deal yourself</h1><p>The keeper, an attested AWS Nitro enclave, deals every hand. At the deal it publishes a salted SHA-256 commitment to each hole card and each of the five board cards, before anyone bets. Below, your browser recomputes every card that was opened. Folded hands are never opened during play.</p></div>
       <div class="allok ${checks && !allOk ? "bad" : ""}">${checks ? `${good} of ${checks} openings match` : "No hands yet"}</div></div>
     <div class="panel check"><div class="ck-h"><div class="ck-n">1</div><div><div class="ck-t">Cards were fixed before the first bet</div><div class="ck-d">Commitment = SHA-256 of <code>{"domain":"makeo:holdem:card:v1","value":{"card":n,"salt":s}}</code>. The board's five commitments exist from the deal, so the turn and river cannot be changed later.</div></div><div class="ck-ok ${checks && !allOk ? "bad" : checks ? "" : "wait"}">${checks ? (allOk ? "✓ all match" : "✗ check failed") : "play a hand"}</div></div>
       ${handHTML.join("") || `<div class="empty">Play a hand and its commitments appear here.</div>`}</div>
-    <div class="panel check"><div class="ck-h"><div class="ck-n">2</div><div><div class="ck-t">Every AI decision came from attested private inference</div><div class="ck-d">AI seats run on NEAR AI Cloud inside a TEE. Each decision's request and response are hashed and signed by the enclave's key; the runner checks the attestation (<code>verify/nearai.ts</code>) and publishes every receipt, with the AI's private reasoning, once the table closes.</div></div><div class="ck-ok ${aiReceipts.length ? "" : "wait"}">${aiReceipts.length ? `${aiReceipts.filter((r) => r.verified).length}/${aiReceipts.length} verified` : practice ? "practice CPUs are scripted" : "no receipts loaded"}</div></div>
-      ${ai}
+    <div class="panel check"><div class="ck-h"><div class="ck-n">2</div><div><div class="ck-t">Every AI decision came from attested private inference</div><div class="ck-d">AI players run on NEAR AI Cloud inside a TEE. Each decision's request and response are hashed and signed by the enclave's key; the runner checks the attestation (<code>verify/nearai.ts</code>) and publishes every receipt, with the AI's private reasoning, once the game ends.</div></div><div class="ck-ok ${aiReceipts.length ? "" : "wait"}">${aiReceipts.length ? `${aiReceipts.filter((r) => r.verified).length}/${aiReceipts.length} verified` : practice ? "practice CPUs are scripted" : "no receipts loaded"}</div></div>
+      ${aiReceiptsHTML()}
       <div class="dropzone"><label class="btn sm ghost">Load receipts file<input type="file" id="rfile" accept="application/json" hidden></label><span>or open this page with <code>?receipts=&lt;url&gt;</code></span></div></div>
-    <div class="panel check"><div class="ck-h"><div class="ck-n">3</div><div><div class="ck-t">The keeper is attested code</div><div class="ck-d">The table's seed is committed in its manifest before play and published when the table closes, so anyone can replay every hand with the rules in this repository. The keeper's signing key comes from an AWS Nitro attestation (<code>verify/keeper.ts</code>), and the pot settles on NEAR only on a result that key signed.</div></div></div></div>
+    <div class="panel check"><div class="ck-h"><div class="ck-n">3</div><div><div class="ck-t">The result settles on NEAR</div><div class="ck-d">The keeper signs the game's final step. Once the game ends its full final state is public, with the winners and their chip shares; the NEAR pot contract checks it against the keeper's signed hash and pays the winners (<code>verify/near.ts</code>, <code>verify/keeper.ts</code>). The seed is published too, so anyone can replay every hand with these rules.</div></div></div>${settle}</div>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn ghost" id="rback2">${room ? "Back to the table" : "Back"}</button></div>`;
   $("#rback2").onclick = () => show(room ? "table" : "title");
   const file = document.getElementById("rfile") as HTMLInputElement | null;
-  if (file) file.onchange = async () => {
-    const f = file.files?.[0];
-    if (!f) return;
-    try {
-      loadReceipts(JSON.parse(await f.text()));
-      void drawReceipt();
-    } catch {
-      toast("That file isn't a receipts file");
-    }
-  };
+  if (file)
+    file.onchange = async () => {
+      const f = file.files?.[0];
+      if (!f) return;
+      try {
+        loadReceipts(JSON.parse(await f.text()));
+        void drawReceipt();
+      } catch {
+        toast("That file isn't a receipts file");
+      }
+    };
 }
 
 function loadReceipts(json: any) {
@@ -883,4 +892,4 @@ function aiReceiptsHTML() {
 })();
 
 show("title");
-void enter(() => Makeo.room() as Promise<MakeoRoom<TableView> | null>);
+void enter(() => Makeo.room() as Promise<MakeoRoom<MatchView> | null>);

@@ -95,7 +95,7 @@ export function legalMoves(view: SeatView): Move[] {
 /** The hand number, for receipts. */
 export function round(view: SeatView): number {
   const v = view as any;
-  return Number(v?.hand?.id ?? v?.game?.hand?.id ?? 0) || 0;
+  return Number(v?.hand?.id ?? v?.game?.hands ?? v?.hands ?? 0) || 0;
 }
 
 export function prompt(view: SeatView, publicLog: HoldemEvent[], who: Persona): Prompt {
