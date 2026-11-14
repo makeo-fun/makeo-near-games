@@ -17,6 +17,7 @@ import {
   scriptedMove,
   speechText,
 } from "../shared/nearwolf.js";
+import "./adapter.js";
 
 /* ---------------- constants (makeo.toml [rules]) ---------------- */
 const PHASE_MS: Record<string, number> = { night: 30000, dawn: 7000, council: 50000, pyre: 30000, dusk: 7000, end: 1 };

@@ -138,6 +138,7 @@ fn no_seat_sees_another_seats_secret() {
     for x in public["seats"].as_array().unwrap() {
         assert!(x["role"].is_null() && x["wallet"].is_null() && x["house"].is_null());
     }
+    assert!(public["state"].is_null() && public["winners"] == json!([]), "no full state before the end");
     assert!(public["you"].is_null() && public["role"].is_null() && public["looks"].is_null() && public["pack"].is_null());
     let text = public.to_string();
     for p in 1..=3 {
@@ -344,8 +345,20 @@ fn the_village_wins_when_the_last_wolf_burns() {
     assert_eq!(h.paid_to(&wallet(wolf)), 0);
     let village: u128 = (1..=6u8).filter(|&p| p != wolf).map(|p| h.paid_to(&wallet(p))).sum();
     assert_eq!(village, 6 * STAKE);
+    // The settlement field: every village entrant, lowercase, the wolf left out.
+    let expect: Vec<String> = s.seats.iter().filter(|x| x.role != Role::Wolf).filter_map(|x| x.wallet.clone()).map(|w| w.to_lowercase()).collect();
+    assert_eq!(s.winners, expect);
+    assert_eq!(s.winners.len(), 5);
+    assert!(!s.winners.contains(&wallet(wolf).to_lowercase()));
     // At the end every seat, role and wallet is shown to everyone.
     let public = h.output.as_ref().unwrap().journal.public_view["game"].clone();
+    // Settlement: the finished public view carries the full rules state, unredacted, winners included.
+    assert_eq!(public["state"], serde_json::to_value(&s).unwrap());
+    assert_eq!(public["winners"], json!(s.winners));
+    assert!(public["state"].to_string().len() < 50_000);
+    for p in 1..=6u8 {
+        assert_eq!(h.view_for(p).unwrap()["game"]["state"], public["state"]);
+    }
     for (i, x) in public["seats"].as_array().unwrap().iter().enumerate() {
         assert_eq!(x["role"], json!(s.seats[i].role));
         assert_eq!(x["house"], json!(false));
@@ -369,6 +382,7 @@ fn the_wolves_win_at_parity() {
     let s = state(&h);
     assert_eq!((s.phase, s.winner), (Phase::End, Some(Team::Wolves)));
     assert_eq!(h.paid_to(&wallet(wolf)), 4 * STAKE);
+    assert_eq!(s.winners, vec![wallet(wolf).to_lowercase()]);
     let _ = player_at(&h, seat(&h, wolf), 4);
 }
 
@@ -409,6 +423,11 @@ fn house_seats_fill_the_fire_and_the_clock_always_ends_it() {
         }
         let s = state(&h);
         assert!(s.winner.is_some());
+        // Only entrants can be paid: the winners list never names a house seat.
+        assert!(s.winners.len() <= 1);
+        assert!(s.winners.iter().all(|w| *w == wallet(1).to_lowercase()));
+        let state_bytes = serde_json::to_string(&s).unwrap().len();
+        assert!(state_bytes < 50_000, "final state is {state_bytes} bytes");
         assert_eq!(h.game::<SeriesState<State>>().phase, SeriesPhase::Settled);
         // House seats spoke in the record.
         assert!(s.log.iter().any(|e| matches!(e, Entry::Council { moves, .. } if moves.iter().any(|(_, m)| m.kind != "silent"))));

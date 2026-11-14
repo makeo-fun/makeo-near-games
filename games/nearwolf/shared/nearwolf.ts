@@ -48,6 +48,10 @@ export type GameView = {
   last_heal: number | null;
   log: Entry[];
   winner: Team | null;
+  /** At the end: the winning team's entrants (lowercase wallets), for settlement. */
+  winners?: string[];
+  /** At the end: the full rules state, unredacted (settlement reads it). */
+  state?: unknown;
   deal: { wolves: number; seer: boolean; healer: boolean; seats: number };
 };
 

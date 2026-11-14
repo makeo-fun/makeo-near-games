@@ -132,6 +132,9 @@ pub struct State {
     /// The public record.
     pub log: Vec<Entry>,
     pub winner: Option<Team>,
+    /// Settlement (NEAR pot): the winning team's entrants, lowercase wallets, dead or alive, in
+    /// seat order. House seats are never in it. Empty until the end.
+    pub winners: Vec<String>,
     /// Secret luck for the house seats' choices.
     pub rng: Rng64,
 }
@@ -537,6 +540,10 @@ fn resolve(config: &Config, s: &mut State, now: u64) {
 
 fn finish(s: &mut State, w: Team, now: u64) {
     s.winner = Some(w);
+    s.winners = (0..s.seats.len())
+        .filter(|&i| s.team(i) == w)
+        .filter_map(|i| s.seats[i].wallet.as_ref().map(|x| x.to_ascii_lowercase()))
+        .collect();
     s.phase = Phase::End;
     s.deadline_ms = now;
     s.night.clear();
@@ -589,6 +596,7 @@ impl Rules for Game {
             looks: vec![],
             log: vec![],
             winner: None,
+            winners: vec![],
             rng: luck.rng64(),
         };
         enter(config, &mut s, Phase::Night, ctx.now_ms);
@@ -736,6 +744,9 @@ impl Rules for Game {
         let looks = if over || my_role == Some(Role::Seer) { json!(state.looks) } else { Value::Null };
         let last_heal = if over || my_role == Some(Role::Healer) { json!(state.last_heal) } else { Value::Null };
         let (wolves, seer, healer) = roles_for(state.seats.len());
+        // Once the game is over nothing is secret: everyone (the room's public view, which the
+        // keeper signs into its journal) gets the full rules state, for settlement on NEAR.
+        let full = if over { serde_json::to_value(state).map_err(|e| e.to_string())? } else { Value::Null };
         Ok(json!({
             "seats": seats,
             "you": me,
@@ -750,6 +761,8 @@ impl Rules for Game {
             "last_heal": last_heal,
             "log": state.log,
             "winner": state.winner,
+            "winners": state.winners,
+            "state": full,
             "deal": { "wolves": wolves, "seer": seer, "healer": healer, "seats": state.seats.len() },
         }))
     }
