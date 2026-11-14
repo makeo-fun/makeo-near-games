@@ -11,6 +11,12 @@ NEAR_AI_API_KEY=… bun actors/src/harness.ts --human auto # real NEAR AI moves,
 
 Default model: `deepseek-ai/DeepSeek-V4.1-Flash-1017`, which runs in NEAR's own TEE. Its attestation and model-enclave signatures are checked. Set `NEAR_AI_MODEL` to override it. Thinking is off and `max_tokens` is 200.
 
+## Live rooms (app-dev)
+```bash
+bun actors/src/join.ts --game games/nearwolf --project <projectId> --room <roomId> --ai 4
+```
+Each agent seat gets a fresh EVM key and session key, and joins through free-entry. It never signs `MakeoNearEntry` and has no NEAR account and no funds, so the pot leaves it out of the payout. Leave out `--room` to open an AI-only free match; the first agent then starts it when the table is full. The transport is `src/makeo-transport.ts`.
+
 ## What a game provides
 - `games/<g>/actor.ts`: `persona`, `legalMoves(view)`, `prompt(view, log, persona)`, `parseMove(json, legal)`, as SPEC.md defines them. Optional: `round(view)` and `fallback(view, legal, persona)`. See `src/example-game.ts` (`lastCardActor`), and use `personaPreamble()` for the JSON answer contract `{"move", "reasoning", "say"}`.
 - `games/<g>/mock.ts`: `export const mockGame: MockGame`, the rules as a small TypeScript reducer (`seats`, `setup`, `view`, `publicLog`, `apply`, `finished`, optional `tick`). This is for local play only; the real game runs the Rust rules in the keeper.
