@@ -9,8 +9,12 @@
 import type { Prompt } from "./types";
 
 export const NEAR_AI_BASE = "https://cloud-api.near.ai/v1";
-/** A model served from NEAR's own TEE with JSON mode (GET /v1/models, 2026-11-14). */
-export const DEFAULT_MODEL = "Qwen/Qwen3.6-35B-A3B-FP8";
+/**
+ * The default model: DeepSeek V4.1 Flash served from NEAR's own TEE (owned_by "nearai" in GET /v1/models,
+ * 2026-11-14; attestation checked). Not "deepseek/deepseek-v4.1-flash", which DeepSeek serves with no TEE.
+ * Override with NEAR_AI_MODEL (e.g. "Qwen/Qwen3.6-35B-A3B-FP8", also NEAR-TEE).
+ */
+export const DEFAULT_MODEL = "deepseek-ai/DeepSeek-V4.1-Flash-1017";
 
 export type Completion = { chat_id: string; json: unknown; text: string; request_body: string; response_body: string };
 export interface Inference {
@@ -32,7 +36,7 @@ export class NearAiClient implements Inference {
       messages: [{ role: "system", content: prompt.system }, { role: "user", content: prompt.user }],
       response_format: { type: "json_object" },
       temperature: this.options.temperature ?? 0.7,
-      max_tokens: this.options.maxTokens ?? 600,
+      max_tokens: this.options.maxTokens ?? 200, // a move is one short JSON object
       stream: false,
       // Reasoning models (Qwen3, GLM) think by default and can spend the whole budget on it
       // (docs.near.ai/cloud/reasoning-models). Off unless asked for; the move JSON carries a short reasoning.

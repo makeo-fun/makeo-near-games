@@ -95,10 +95,21 @@ test("S: changed response bytes fail S2; an unattested signer fails S4; a forged
   expect(forged.ok).toBe(false);
 });
 
+test("S: several attested instances sharing one key pass; a failed report with that key fails", () => {
+  const text = `${model}:${sha(request)}:${sha(response)}`;
+  const record = { text, signature: personalSign(text), signing_address: address, signing_algo: "ecdsa", signature_kind: "provider_tee" };
+  const twice = attested(address, "model");
+  twice.models.push({ ...twice.models[0]! });
+  expect(checkSignature({ record, model, requestBody: request, responseBody: response, attestation: twice }).ok).toBe(true);
+  twice.models[1]!.ok = false;
+  expect(checkSignature({ record, model, requestBody: request, responseBody: response, attestation: twice }).ok).toBe(false);
+});
+
 test("S: a real recorded signature verifies, when one has been recorded", async () => {
   let fixture: { record: never; model: string; request_body: string; response_body: string; attestation: Attestation } | null = null;
   try { fixture = JSON.parse(read("signature.json")); } catch { /* not recorded yet: run verify/record.ts with NEAR_AI_API_KEY */ }
   if (!fixture) return;
+  expect((fixture.record as { signature_kind: string }).signature_kind).toBe("provider_tee");
   const r = checkSignature({ record: fixture.record, model: fixture.model, requestBody: fixture.request_body, responseBody: fixture.response_body, attestation: fixture.attestation });
   expect(r.ok).toBe(true);
 });

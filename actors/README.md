@@ -9,6 +9,8 @@ bun actors/src/harness.ts --game games/nearwolf --ai 5   # your game: games/<g>/
 NEAR_AI_API_KEY=… bun actors/src/harness.ts --human auto # real NEAR AI moves, verified, with receipts
 ```
 
+Default model: `deepseek-ai/DeepSeek-V4.1-Flash-1017`, which runs in NEAR's own TEE. Its attestation and model-enclave signatures are checked. Set `NEAR_AI_MODEL` to override it. Thinking is off and `max_tokens` is 200.
+
 ## What a game provides
 - `games/<g>/actor.ts`: `persona`, `legalMoves(view)`, `prompt(view, log, persona)`, `parseMove(json, legal)`, as SPEC.md defines them. Optional: `round(view)` and `fallback(view, legal, persona)`. See `src/example-game.ts` (`lastCardActor`), and use `personaPreamble()` for the JSON answer contract `{"move", "reasoning", "say"}`.
 - `games/<g>/mock.ts`: `export const mockGame: MockGame`, the rules as a small TypeScript reducer (`seats`, `setup`, `view`, `publicLog`, `apply`, `finished`, optional `tick`). This is for local play only; the real game runs the Rust rules in the keeper.
