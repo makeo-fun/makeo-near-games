@@ -1,0 +1,12 @@
+# Inside the dev.makeo.fun { } site block, before the platform's reverse_proxy (wrapped in handle { }).
+# The website Worker forwards dev.makeo.fun/api/* to this origin, so the dispatcher lives under /api/.
+handle_path /api/near-agents/* {
+	request_body {
+		max_size 4KB
+	}
+	reverse_proxy 127.0.0.1:18790 {
+		header_up X-Agents-Peer {http.request.remote.host}
+		header_up X-Agents-Client {http.request.header.CF-Connecting-IP}
+		import strip_cloudflare_headers
+	}
+}

@@ -39,7 +39,7 @@ export async function openView(privateKey: CryptoKey, instance: string, wallet: 
   return JSON.parse(new TextDecoder().decode(plain));
 }
 
-type Paid = { instance: string; manifestHash: string; chainId: number; head: string; count: number; view: { phase?: string; entrants?: string[]; log?: unknown[] } & Record<string, unknown> | null; hidden?: { seal_key?: string }; lobby?: { host: string | null }; free?: boolean };
+export type Paid = { instance: string; manifestHash: string; chainId: number; head: string; count: number; view: { phase?: string; entrants?: string[]; log?: unknown[] } & Record<string, unknown> | null; hidden?: { seal_key?: string }; lobby?: { host: string | null }; free?: boolean; vault?: string; terms?: { max_players?: number; entry_deadline_ms?: number | null } | null };
 
 export type MakeoTransportOptions = {
   /** e.g. https://app-dev.makeo.fun (MAKEO_PLATFORM_URL). */
@@ -127,6 +127,12 @@ export class MakeoTransport implements RoomTransport {
   private changed() {
     for (const l of [...this.listeners]) queueMicrotask(l);
     void this.maybeStart();
+  }
+
+  /** The room's public paid snapshot (connects first). Read-only: used to check a room before seating. */
+  async snapshot(): Promise<Paid | null> {
+    await this.connect();
+    return this.paid;
   }
 
   async info(): Promise<RoomInfo> {
