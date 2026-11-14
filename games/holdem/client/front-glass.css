@@ -1,0 +1,32 @@
+/* The front door over the glass table: title, modes, lobby. Makeo's access point owns the top right. */
+#front{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:24px 16px;overflow:auto;
+  background:radial-gradient(120% 90% at 50% 115%,#ffb070 0%,#ff4fc3 16%,#5a3bff 38%,#0a1140 66%,#040720 100%)}
+#front[hidden]{display:none}
+.fr-in{width:min(520px,100%);display:flex;flex-direction:column;gap:14px;text-align:center;padding:28px 22px;border-radius:28px;
+  background:linear-gradient(160deg,rgba(255,255,255,.22),rgba(255,255,255,.07) 45%,rgba(255,255,255,.12));border:1px solid var(--line);
+  -webkit-backdrop-filter:blur(22px) saturate(1.5);backdrop-filter:blur(22px) saturate(1.5);box-shadow:0 1px 0 rgba(255,255,255,.55) inset,0 30px 80px rgba(4,8,40,.5)}
+.fr-k{font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:rgba(255,255,255,.75)}
+#front h1{font-family:var(--disp);font-weight:800;font-size:clamp(40px,10vw,74px);line-height:.92;letter-spacing:-.02em;color:#fff}
+#front h1 i{font-style:normal;background:var(--aurora);-webkit-background-clip:text;background-clip:text;color:transparent}
+.fr-t{font-family:var(--ui);font-size:clamp(15px,4vw,18px);line-height:1.4;color:rgba(255,255,255,.88)}
+.fr-menu{display:grid;gap:10px;margin-top:6px}
+.fr-menu[hidden],.fr-lobby[hidden]{display:none}
+.fr-b{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:14px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.55);cursor:pointer;text-align:left;
+  background:linear-gradient(120deg,rgba(53,224,255,.85),rgba(139,92,255,.85) 55%,rgba(255,79,195,.85));color:#fff;font-family:var(--disp);font-weight:700;font-size:20px;
+  box-shadow:0 1px 0 rgba(255,255,255,.6) inset,0 12px 30px rgba(90,59,255,.35);transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
+.fr-b:hover{transform:translateY(-2px) scale(1.01)}.fr-b:active{transform:scale(.97)}
+.fr-b small{font-family:var(--mono);font-weight:400;font-size:11px;opacity:.85}
+.fr-b.ghost{background:rgba(255,255,255,.1)}
+.fr-b.sm{align-items:center;font-size:14px;padding:10px}
+.fr-b:disabled{opacity:.45;cursor:default}
+.fr-lobby{display:grid;gap:10px;font-family:var(--mono);font-size:12px;color:rgba(255,255,255,.8)}
+.fr-lobby .seats{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.fr-lobby .seat{padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.4);color:#fff}
+.fr-lobby .seat.empty{border-style:dashed;color:rgba(255,255,255,.6);background:none}
+.fr-lobby .head{font-family:var(--disp);font-weight:800;font-size:26px;color:#fff}
+.fr-pot{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.7);line-height:1.7;border-top:1px solid rgba(255,255,255,.2);padding-top:10px}
+.fr-err{font-family:var(--mono);font-size:12px;color:#ffd0ec}
+.fr-err:empty{display:none}
+.fr-classic{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.65)}
+.fr-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:30;font-family:var(--mono);font-size:12px;border-radius:14px;background:rgba(10,16,48,.85);border:1px solid var(--line);color:#fff;padding:10px 14px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw}
+.fr-toast.on{opacity:1}

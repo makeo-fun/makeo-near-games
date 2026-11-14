@@ -4,26 +4,27 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="makeo-orientation" content="any">
-<title>NEAR HOLD'EM</title>
+<title>NEAR Hold'em</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./noir/style.css">
-<link rel="stylesheet" href="./menu.css">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./glass/style.css">
+<link rel="stylesheet" href="./front-glass.css">
+<!-- three.js r160, pinned: the postprocessing modules import "three", mapped to the same file -->
+<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }</script>
 </head>
 <body>
 <div id="stage">
   <canvas id="gl"></canvas>
+  <div id="flash"></div>
   <div id="tbl"></div>
-  <div id="dim"></div>
+  <div id="flat"></div>
   <div id="ui"></div>
-  <div id="vig"></div>
-  <div id="grain"></div>
   <div id="hud">
-    <div class="bug"><b>NEAR <i>HOLD’EM</i></b><span id="hud-phase"></span></div>
-    <div class="brd" id="hud-board"></div>
-    <div class="me" id="hud-me"></div>
-    <div class="hand" id="hud-hand"></div>
+    <div class="brand"><i class="gem"></i><b>NEAR HOLD’EM</b><span>a Makeo game</span></div>
+    <div class="right"><span id="hud-demo"></span><span id="hud-phase"></span><span id="hud-pot"></span></div>
+    <div class="keeper" id="hud-keeper"><i></i>Keeper · AWS Nitro enclave</div>
+    <div class="me" id="hud-me" style="display:none"></div>
   </div>
   <div id="ctl"></div>
 </div>
@@ -31,7 +32,7 @@
   <div class="fr-in">
     <div class="fr-k">a makeo game · no-limit hold’em on near</div>
     <h1>NEAR <i>HOLD’EM</i></h1>
-    <p class="fr-t">Poker where the dealer is an enclave, the AI players are verified, and nobody has to trust the house.</p>
+    <p class="fr-t">A poker table in orbit. The dealer is an enclave, the AI players are verified, and nobody has to trust the house.</p>
     <div class="fr-menu" id="menuMain">
       <button class="fr-b" data-go="free"><b>Free play</b><small>Practice or play friends</small></button>
       <button class="fr-b ghost" data-go="paid"><b>Paid match</b><small>Sit-and-go · entry from 1</small></button>
@@ -49,8 +50,6 @@
 </div>
 <div class="fr-toast" id="toast"></div>
 <script src="./makeo-rooms.js"></script>
-<!-- three.js r160, pinned -->
-<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 <script type="module" src="./main.js"></script>
 </body>
 </html>
