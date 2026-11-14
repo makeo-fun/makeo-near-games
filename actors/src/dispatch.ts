@@ -77,6 +77,7 @@ export function createDispatcher(deps: Deps) {
     if (!parsed.ok) return json({ ok: false, error: parsed.error }, 400);
     const { project, game, room, ai } = parsed.value;
     const existing = rooms.get(room);
+    if (existing && existing.project !== project) return json({ ok: false, error: "that room is not a free match of this game" }, 409);
     if (existing) return json({ ok: true, ai: existing.wanted, ...status(existing) }); // one dispatch per room
     if (pending.has(room)) return json({ ok: false, error: "already seating NEAR AI in that room" }, 409);
     if (!deps.enabled) return json({ ok: false, error: "NEAR AI seats are switched off right now" }, 503);

@@ -124,6 +124,8 @@ describe("dispatcher http", () => {
     const b = await d.fetch(post({ project: WOLF, room: room(), ai: 6 }), "1.1.1.1");
     expect(b.status).toBe(200);
     expect(plays).toEqual([room()]);
+    const other = await d.fetch(post({ project: "795650a8-2999-4971-b388-469c19b9c362", room: room(), ai: 1 }), "1.1.1.1");
+    expect(other.status).toBe(409);
   });
   test("refuses missing or foreign origins, and answers CORS only for allowed ones", async () => {
     const { d } = make();
