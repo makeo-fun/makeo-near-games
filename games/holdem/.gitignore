@@ -1,0 +1,12 @@
+node_modules/
+target/
+dist/
+.makeo/project.json
+.makeo/dev.json
+.makeo/screenshots/
+*.makeo.json
+.makeo/harness/
+AGENTS.md
+CLAUDE.md
+.mcp.json
+client/makeo*.d.ts
