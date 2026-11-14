@@ -63,6 +63,7 @@ const personas = pickPersonas(ai, actor.persona?.length ? actor.persona : undefi
 const transports: MakeoTransport[] = [];
 const testHumans: Array<{ label: string; seat: string; payout: string | null; entered: unknown }> = [];
 const payoutKeys: Array<{ seat: string; accountId: string; secretKeyHex: string }> = [];
+const humanPersona = { id: "test-human", name: "Test human", voice: "plain", style: "solid, sensible play" };
 for (let h = 0; h < humans; h++) {
   const label = `TEST HUMAN SEAT ${h + 1} (scripted)`;
   const t = new MakeoTransport({ base, projectId, roomId, name: `Test human ${h + 1}`, log, ...(weStart && h === 0 ? { startAt: seats } : {}) });
@@ -94,9 +95,11 @@ for (let h = 0; h < humans; h++) {
       if (!legal.length || key === last) return;
       last = key;
       // --prefer <text>: pick a legal move whose JSON contains it (e.g. "allin" for a short Hold'em match).
+      // Otherwise they play the game's own scripted strategy (actor.fallback), so a test human can
+      // plausibly win; random legal moves only when the game has none.
       const preferred = prefer ? legal.filter((m) => JSON.stringify(m).includes(prefer)) : [];
-      const pool = preferred.length ? preferred : legal;
-      const move = pool[Math.floor(Math.random() * pool.length)];
+      const move = preferred.length ? preferred[Math.floor(Math.random() * preferred.length)]
+        : actor.fallback ? actor.fallback(view, legal, humanPersona) : legal[Math.floor(Math.random() * legal.length)];
       const ack = await me.play(move);
       console.log(`[${label}] ${JSON.stringify(move)} ${ack.accepted ? "accepted" : `refused: ${ack.message}`}`);
       if (!ack.accepted) last = "";
@@ -105,6 +108,14 @@ for (let h = 0; h < humans; h++) {
   t.subscribe(() => void turn());
   setInterval(() => void turn(), 3000);
 }
+// Every test human must be in the pot before any AI seat joins (the table can't fill, so it can't start).
+const failedEntries = stakeNear ? testHumans.filter((t) => (t.entered as { error?: unknown } | null)?.error !== undefined || !t.entered) : [];
+if (failedEntries.length) {
+  console.log(`ABORT: ${failedEntries.length} test human entr${failedEntries.length > 1 ? "ies" : "y"} failed: ${JSON.stringify(failedEntries)}. No AI seat joined; the match did not start.`);
+  transports.forEach((t) => t.close());
+  process.exit(2);
+}
+if (stakeNear) console.log(`all ${testHumans.length} test human seats are in the pot: ${testHumans.map((t) => JSON.stringify(t.entered)).join(" ")}`);
 if (payoutKeys.length) {
   // The payout accounts' keys stay on this machine (they can spend what the pot pays); only ids are printed.
   const dir = resolve(import.meta.dir, "../receipts/private");
