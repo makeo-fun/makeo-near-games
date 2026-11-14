@@ -347,7 +347,11 @@ function nameOf(wallet: string, seat: number): string {
   const players = room?.players ?? [];
   const p = players.find((x) => x.id?.toLowerCase() === wallet.toLowerCase()) ?? players.find((x) => x.seat === seat);
   const fromLobby = room?.lobby?.seats?.find((s) => s.id?.toLowerCase() === wallet.toLowerCase())?.name;
-  return p?.name || fromLobby || `Player ${short(wallet)}`;
+  const name = p?.name || fromLobby;
+  if (name && !/^0x[0-9a-f]{4}/i.test(name)) return name;
+  // Practice CPUs sit at seats 1..n with the names the page gave them.
+  if (practice && seat > 0) return PERSONAS[(seat - 1) % PERSONAS.length];
+  return name || `Player ${short(wallet)}`;
 }
 function nameAt(rec: HandRecord, i: number) {
   return rec.players[i]?.wallet && myWallet() && rec.players[i].wallet.toLowerCase() === myWallet() ? "You" : rec.players[i]?.name ?? `Seat ${i + 1}`;
