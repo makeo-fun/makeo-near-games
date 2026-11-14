@@ -177,6 +177,7 @@ function serve() {
   const authorized = (req: Request) => !!token && req.headers.get("authorization") === `Bearer ${token}`;
   const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "content-type, authorization" } });
   const server = Bun.serve({
+    hostname: process.env.OPERATOR_HOST ?? "127.0.0.1",
     port: Number(process.env.OPERATOR_PORT ?? 8787),
     async fetch(req) {
       const url = new URL(req.url);
