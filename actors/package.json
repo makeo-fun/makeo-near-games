@@ -1,0 +1,13 @@
+{
+  "name": "@makeo-near-games/actors",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "demo": "bun run src/demo.ts"
+  },
+  "dependencies": {
+    "@noble/curves": "2.0.1",
+    "@noble/hashes": "2.0.1"
+  }
+}
