@@ -4,7 +4,7 @@
 //
 // The prompt carries only what this seat may know: its own view (its role; a wolf's pack and
 // their picks; the Seer's own visions; the Healer's last protection) and the public record.
-// Structurally the same as actors/src/types.ts's GameActor (no import, so this folder builds alone).
+// Types and the answer contract come from actors/ (the agent-actors stream).
 import {
   type GameView,
   type Entry,
@@ -20,8 +20,8 @@ import {
   scriptedMove,
   speechText,
 } from "./shared/nearwolf.ts";
-
-export type Persona = { id: string; name: string; voice: string; style: string; avatar?: string; lines?: Partial<Record<string, string[]>> };
+import { personaPreamble } from "../../actors/src/personas";
+import type { GameActor, Persona } from "../../actors/src/types";
 
 /** The room's view is the contest's; the rules' view for this seat is its `game`. Accept either. */
 type AnyView = GameView | { game: GameView | null };
@@ -107,12 +107,11 @@ export function prompt(view: AnyView, publicLog: Entry[] | unknown[], who: Perso
     role_known_to_you: s.role ? ROLES[s.role].name : null,
   }));
   const system = [
-    `You are ${who.name}, an AI player at a game of NEARWOLF. You play to win, within the rules.`,
-    `Voice: ${who.voice}`,
-    `Play style: ${who.style}`,
-    `At the table everyone knows you as ${personaOf(v, me).name}, ${personaOf(v, me).trade}. Never say you are an AI.`,
+    // The seat's own name: the table only knows this seat as its persona (no other name exists here).
+    personaPreamble({ ...who, name: personaOf(v, me).name }, "NEARWOLF"),
+    `You are ${personaOf(v, me).name}, ${personaOf(v, me).trade}, seat ${me}. Speak as ${personaOf(v, me).name} only; never mention another name for yourself, and never say you are an AI. Refer to others by their table names.`,
     RULES,
-    `Answer with ONE JSON object only, no prose around it: {"move": <one of the legal moves, as JSON>, "reasoning": "<private, 1-3 sentences>", "say": "<optional public line in character, under 120 chars>"}.`,
+    `Your "move" must be exactly one of legal_moves (fill in "line" for a council move). "reasoning" is your private confessional: it stays sealed until the game ends, then everyone reads it. Wolves may lie in "say" and "line", never in "reasoning".`,
   ].join("\n\n");
   const user = JSON.stringify(
     {
@@ -135,8 +134,14 @@ const lineOf = (x: unknown) => (typeof x === "string" ? x.replace(/\s+/g, " ").t
 
 /** The model's whole JSON answer; null makes the runner play `fallback`. */
 export function parseMove(json: unknown, legalList: Move[]): Move | null {
-  const answer = json as { move?: unknown; say?: unknown } | null;
-  let m = answer?.move as Record<string, unknown> | undefined;
+  const answer = (json && typeof json === "object" ? json : { move: json }) as { move?: unknown; say?: unknown } | null;
+  let m = (answer && "move" in answer ? answer.move : answer) as Record<string, unknown> | undefined;
+  // A bare move at the top level ({"move":"vote","target":3,...}) or a bare seat number.
+  if (typeof m === "string" && ["night", "council", "vote"].includes(m)) m = answer as Record<string, unknown>;
+  if (typeof m === "number" || (typeof m === "string" && /^\d+$/.test(m))) {
+    const t = Number(m);
+    return legalList.find((x) => (x.move === "night" || x.move === "vote") && x.target === t) ?? null;
+  }
   if (typeof m === "string") {
     try {
       m = JSON.parse(m);
@@ -145,6 +150,8 @@ export function parseMove(json: unknown, legalList: Move[]): Move | null {
     }
   }
   if (!m || typeof m !== "object") return null;
+  // An object that names only a phase-free choice: infer the phase from what is legal now.
+  if (m.move == null && legalList.length) m = { ...m, move: legalList[0].move };
   const num = (x: unknown) => (x == null ? null : Number.isInteger(Number(x)) ? Number(x) : NaN);
   const kind = m.move;
   if (kind === "night") {
@@ -177,4 +184,5 @@ export function fallback(view: AnyView, legalList: Move[], _persona: Persona): M
   return (v && scriptedMove(v, Math.random)) ?? legalList[0];
 }
 
-export default { persona, legalMoves, prompt, parseMove, round, fallback };
+const actor: GameActor<AnyView, Move, Entry> = { persona, legalMoves, prompt, parseMove, round, fallback };
+export default actor;
