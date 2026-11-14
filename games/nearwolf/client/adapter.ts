@@ -6,7 +6,7 @@
 import type { GameView } from "../shared/nearwolf.js";
 import { type NearwolfView, type NwEvent, type NwPending, type NwReceipt, fromChoice, toNearwolfView } from "../shared/nearwolf-view.js";
 
-export function createMakeoAdapter(room: MakeoRoom, options: { receipts?: () => NwReceipt[]; contract?: string | null; onRefused?: (message: string) => void } = {}) {
+export function createMakeoAdapter(room: MakeoRoom, options: { receipts?: () => NwReceipt[]; loadReceipts?: () => Promise<void>; contract?: string | null; onRefused?: (message: string) => void } = {}) {
   let game: GameView | null = null;
   let onView: ((view: NearwolfView) => void) | null = null;
   const log: NwEvent[] = [];
@@ -29,9 +29,16 @@ export function createMakeoAdapter(room: MakeoRoom, options: { receipts?: () => 
     onView({ ...last, log: [...log], pending: open });
   }
 
+  let loaded = false;
   function push(view: unknown) {
     const g = (view as { game?: GameView | null } | null)?.game ?? null;
     if (!g) return;
+    // At the end, fetch the AI receipts first (who was AI, their confessionals), then show it.
+    if (g.phase === "end" && options.loadReceipts && !loaded) {
+      loaded = true;
+      void options.loadReceipts().catch(() => undefined).then(() => push(view));
+      return;
+    }
     game = g;
     const nv = toNearwolfView(g, { receipts: options.receipts?.(), contract: options.contract ?? null, practice: room.kind === "practice" });
     const key = keyOf(g);

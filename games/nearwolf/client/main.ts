@@ -4,7 +4,7 @@
 // seat's own view from the rules. The classic table is ./classic.html.
 import type { GameView } from "../shared/nearwolf.js";
 import { PERSONAS, ROLES, scriptedMove } from "../shared/nearwolf.js";
-import { toNearwolfView } from "../shared/nearwolf-view.js";
+import { type NwReceipt, toNearwolfView } from "../shared/nearwolf-view.js";
 import { createMakeoAdapter } from "./adapter.js";
 import "./noir/story.js";
 import "./noir/portraits.js";
@@ -141,7 +141,7 @@ async function start() {
   NW.LIVE = true;
   NW.PRACTICE = room.kind === "practice";
   (window as any).NEARWOLF_PORTRAIT_BASE = "./noir/";
-  (window as any).NEARWOLF_BOOT = { adapter: createMakeoAdapter(room, { contract: NEAR_POT.contract, onRefused: toast }) };
+  (window as any).NEARWOLF_BOOT = { adapter: createMakeoAdapter(room, { contract: NEAR_POT.contract, onRefused: toast, receipts: () => receipts, loadReceipts }) };
   $("#front").hidden = true;
   try {
     NW.mount();
@@ -150,6 +150,22 @@ async function start() {
   }
   const me = g.you != null ? g.seats[g.you] : null;
   if (me && g.role) $("#hud-me").innerHTML = `${room.kind === "practice" ? "practice · " : room.hidden ? "keeper-dealt · " : ""}<b>${esc(PERSONAS[me.persona]?.name)}</b> · ${esc(ROLES[g.role].name)}`;
+}
+
+/** AI receipts (actors/, published at game end as <instance>.receipts.json): `?receipts=<https url>`. */
+let receipts: NwReceipt[] = [];
+async function loadReceipts() {
+  const url = new URLSearchParams(location.search).get("receipts");
+  if (!url || !/^https:\/\//.test(url)) return;
+  for (let i = 0; i < 5 && !receipts.length; i++) {
+    try {
+      const body = await (await fetch(url, { cache: "no-store" })).json();
+      receipts = Array.isArray(body) ? body : Array.isArray(body?.receipts) ? body.receipts : [];
+    } catch {
+      /* not published yet */
+    }
+    if (!receipts.length) await new Promise((r) => setTimeout(r, 2000));
+  }
 }
 
 function addAgainButton() {
