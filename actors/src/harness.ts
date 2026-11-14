@@ -48,6 +48,7 @@ const verify = inference && process.env.NEAR_AI_API_KEY ? createNearAiVerifier({
 console.log(inference ? `AI: NEAR AI Cloud, ${inference.model} (verified)` : "AI: scripted (set NEAR_AI_API_KEY for NEAR AI Cloud)");
 
 const receipts = new ReceiptStore(resolve(import.meta.dir, "../receipts"));
+verify?.attestation().then((a) => receipts.setAttestation(a)).catch(() => undefined);
 const personas = pickPersonas(ai, actor.persona?.length ? actor.persona : undefined);
 const running = runActors({ game: gameName, actor, personas, transport: room, inference, verify, receipts, thinkMs: Number(opt("think", "300")), log, timeoutMs: Number(opt("timeout", "1800000")) });
 

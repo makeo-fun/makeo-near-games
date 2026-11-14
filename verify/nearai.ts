@@ -38,7 +38,7 @@ export const ACCEPTED_TCB = ["UpToDate", "OutOfDate"];
 export type Check = { id: string; label: string; ok: boolean; detail?: string };
 export type SignerKind = "model" | "gateway";
 export type AttestedSigner = { kind: SignerKind; address: string; algo: string; model?: string; checks: Check[]; ok: boolean };
-export type Attestation = { nonce: string; at_ms: number; gateway: AttestedSigner; models: AttestedSigner[]; ok: boolean };
+export type Attestation = { nonce: string; at_ms: number; gateway: AttestedSigner; models: AttestedSigner[]; ok: boolean; /** The raw report the checks ran on (kept so receipts can be rechecked offline). */ report?: AttestationReport };
 
 /** Options for the network-touching parts, so tests can run offline from recorded fixtures. */
 export type VerifyOptions = {
@@ -158,7 +158,8 @@ export async function checkAttestation(report: AttestationReport, nonce: string,
 /** A1–A8 end to end: fresh nonce, fetch, check. Do this BEFORE the completions it will vouch for. */
 export async function attest(model: string, options: VerifyOptions & { apiKey?: string } = {}) {
   const nonce = freshNonce();
-  return checkAttestation(await fetchAttestationReport(model, nonce, options), nonce, options);
+  const report = await fetchAttestationReport(model, nonce, options);
+  return { ...(await checkAttestation(report, nonce, options)), report };
 }
 
 // ---- S. Signature -------------------------------------------------------------------------------

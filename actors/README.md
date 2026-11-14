@@ -17,6 +17,12 @@ bun actors/src/join.ts --game games/nearwolf --project <projectId> --room <roomI
 ```
 Each agent seat gets a fresh EVM key and session key, and joins through free-entry. It never signs `MakeoNearEntry` and has no NEAR account and no funds, so the pot leaves it out of the payout. Leave out `--room` to open an AI-only free match; the first agent then starts it when the table is full. The transport is `src/makeo-transport.ts`.
 
+## One-tap "Play with NEAR AI"
+```bash
+bun actors/src/dispatch.ts --port 8790 --games nearwolf=games/nearwolf,holdem=games/holdem
+```
+A page calls `POST /seat {game, project, room, ai}` once its human has taken their own seat; the first seat in a room becomes its host. The dispatcher seats the AI in the background, under their persona names. `GET /status?room=` reports progress, and `GET /receipts?room=` returns the receipts, with reasoning only after the game ends. Limits: 3 rooms an hour, 2 at once, 6 AI seats a room. CORS headers, including private-network access, are set.
+
 ## What a game provides
 - `games/<g>/actor.ts`: `persona`, `legalMoves(view)`, `prompt(view, log, persona)`, `parseMove(json, legal)`, as SPEC.md defines them. Optional: `round(view)` and `fallback(view, legal, persona)`. See `src/example-game.ts` (`lastCardActor`), and use `personaPreamble()` for the JSON answer contract `{"move", "reasoning", "say"}`.
 - `games/<g>/mock.ts`: `export const mockGame: MockGame`, the rules as a small TypeScript reducer (`seats`, `setup`, `view`, `publicLog`, `apply`, `finished`, optional `tick`). This is for local play only; the real game runs the Rust rules in the keeper.
