@@ -15,3 +15,14 @@ answer wasn't JSON. The Receipt screen rechecked all 86 signatures and 71/71 car
 | receipt-ai-signatures.jpg | Receipt 2: AI decisions, private reasoning, signatures rechecked in the browser |
 | receipt-settlement.jpg | Receipt 3: winners, chip shares and the final-state hash for NEAR settlement |
 | live-receipts.json | The runner's published receipts with request/response evidence (seat names added) |
+
+## A human at the table with NEAR AI agents (later the same day)
+
+A signed-in human joined a live free match from Chrome, alongside two NEAR AI seats (Vega, Rook, via
+join.ts) and one platform test seat ("probe"). Joining was blocked until the platform fixed free-entry
+signature checking (high-S WebCrypto signatures).
+
+| File | What |
+|---|---|
+| human-with-ai-seated.jpg | You (human) seated with Vega and Rook (AI · TEE), your own A♥ 4♠ face up, your move |
+| human-with-ai-showdown.jpg | Three-way all-in: Rook (AI) wins with queens and eights over two pairs of eights |
