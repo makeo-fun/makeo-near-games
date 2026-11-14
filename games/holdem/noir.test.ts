@@ -85,3 +85,27 @@ test("across hands the whole log stays append-only", () => {
   }
   expect(prev.filter((e) => e.includes('"t":"hand"')).length).toBeGreaterThan(2);
 });
+
+test("unsealing mid-hand appends the player's cards, keeping the log append-only", () => {
+  let s: any = mockGame.setup(seats, rng);
+  const me = seats[0].wallet;
+  const acc = new NoirLog();
+  let prev: string[] = [];
+  let unsealedAt = -1;
+  for (let k = 0; k < 120 && s.hand; k++) {
+    const v: any = mockGame.view(s, me);
+    // Break the seal only after a few actions of each hand have been read.
+    if (v.game.hand.actions.length >= 4 && unsealedAt !== v.game.hands) {
+      acc.unseal(v.game.hands);
+      unsealedAt = v.game.hands;
+    }
+    const now = acc.update(v.game, me, (w) => w).log.map((e) => JSON.stringify(e));
+    expect(now.slice(0, prev.length)).toEqual(prev);
+    prev = now;
+    const h = s.hand;
+    const w = h.players[h.turn].wallet;
+    const legal = legalMoves(mockGame.view(s, w) as any);
+    s = mockGame.apply(s, w, legal.find((m) => m.move === "call") ?? legal.find((m) => m.move === "check") ?? legal[0], rng);
+  }
+  expect(prev.filter((e) => e.includes('"t":"hole"')).length).toBeGreaterThan(0);
+});

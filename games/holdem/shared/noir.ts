@@ -189,6 +189,7 @@ export class NoirLog {
   private frozen: NoirEvent[] = [];
   private current: { hand: number; events: NoirEvent[] } | null = null;
   private unsealed = new Set<number>();
+  private holeAt = new Map<number, number>();
   private last: NoirView | null = null;
 
   extras: NoirExtras = {};
@@ -201,10 +202,22 @@ export class NoirLog {
   }
 
   update(g: SitGoView, me: string | null, names: (wallet: string) => string): NoirView {
-    const v = noirView(g, me, names, this.unsealed.has(g.hands) || !me, this.extras);
+    const open = this.unsealed.has(g.hands) || !me;
+    const v = noirView(g, me, names, open, this.extras);
+    // The player's own cards enter the log where they broke the seal, never earlier: the UI has
+    // already read the events before that moment.
+    const hole = v.log.findIndex((e) => e.t === "hole");
+    let events = v.log;
+    if (hole >= 0) {
+      const ev = v.log[hole];
+      events = v.log.filter((_, i) => i !== hole);
+      const at = this.holeAt.get(g.hands) ?? (this.current && this.current.hand === g.hands ? this.current.events.length : 0);
+      this.holeAt.set(g.hands, Math.min(at, events.length));
+      events = [...events.slice(0, this.holeAt.get(g.hands)), ev, ...events.slice(this.holeAt.get(g.hands))];
+    }
     if (this.current && this.current.hand !== v.hand) this.frozen.push(...this.current.events);
-    this.current = { hand: v.hand, events: v.log };
-    this.last = { ...v, log: [...this.opening, ...this.frozen, ...v.log] };
+    this.current = { hand: v.hand, events };
+    this.last = { ...v, log: [...this.opening, ...this.frozen, ...events] };
     return this.last;
   }
 
