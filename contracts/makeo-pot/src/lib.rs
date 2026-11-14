@@ -97,6 +97,31 @@ pub struct Record {
     pub settled_by: AccountId,
 }
 
+/// The Merkle root of a settled game's published AI receipts (NEAR AI Cloud, TEE-signed), anchored by the operator.
+/// Leaf = sha256(canonical JSON of a receipt), receipts sorted by (at_ms, chat_id), node = sha256(left || right),
+/// an odd last node carried up; zero receipts = sha256(""). `bun verify/receipts.ts` rebuilds it from the file.
+#[near(serializers = [json])]
+#[derive(Clone, Debug)]
+pub struct ReceiptsRoot {
+    pub root: String,
+    pub count: u64,
+    pub attested_at_ms: u64,
+    pub attested_by: AccountId,
+}
+
+/// A settled game's record and, once anchored, its AI receipts root.
+#[near(serializers = [json])]
+pub struct RecordView {
+    #[serde(flatten)]
+    pub record: Record,
+    pub receipts: Option<ReceiptsRoot>,
+}
+
+/// Receipts roots live under their own raw keys, so the contract's stored layout is unchanged.
+fn receipts_key(game: &str) -> Vec<u8> {
+    format!("receipts:{game}").into_bytes()
+}
+
 #[near(serializers = [json])]
 pub struct MtToken {
     pub token_id: String,
@@ -405,8 +430,29 @@ impl Pot {
         self.entries.get(&entry_key(&game, &seat.to_lowercase())).cloned()
     }
 
-    pub fn get_record(&self, game: String) -> Option<Record> {
-        self.records.get(&game).cloned()
+    pub fn get_record(&self, game: String) -> Option<RecordView> {
+        let record = self.records.get(&game).cloned()?;
+        Some(RecordView { record, receipts: self.get_receipts(game) })
+    }
+
+    pub fn get_receipts(&self, game: String) -> Option<ReceiptsRoot> {
+        env::storage_read(&receipts_key(&game)).map(|b| serde_json::from_slice(&b).unwrap())
+    }
+
+    /// Anchors the Merkle root of a settled game's published AI receipts. Owner or operator; once per game.
+    pub fn attest_receipts(&mut self, game: String, root: String, count: u64) -> ReceiptsRoot {
+        let caller = env::predecessor_account_id();
+        require!(caller == self.owner || self.operators.contains_key(&caller), "only the owner or an operator attests receipts");
+        require!(self.records.contains_key(&game), "the game is not settled");
+        let root = root.to_lowercase();
+        let root = if root.starts_with("0x") { root } else { format!("0x{root}") };
+        require!(proof::is_hash_hex(&root), "a root is 32 bytes of hex");
+        let key = receipts_key(&game);
+        require!(!env::storage_has_key(&key), "this game's receipts are already anchored");
+        let anchored = ReceiptsRoot { root, count, attested_at_ms: now_ms(), attested_by: caller };
+        env::storage_write(&key, &serde_json::to_vec(&anchored).unwrap());
+        env::log_str(&format!("EVENT_JSON:{}", serde_json::json!({"standard": "makeo-pot", "version": "1.0.0", "event": "attest_receipts", "data": [{"game": game, "root": anchored.root, "count": count}]})));
+        anchored
     }
 
     /// The digest a seat signs to enter (for clients and tests): hex.

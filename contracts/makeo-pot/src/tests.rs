@@ -201,7 +201,7 @@ fn settle_pays_the_keepers_winners_and_mints_badges() {
     assert_eq!(pot.mt_tokens_for_owner(acc("carol.testnet"), None, None)[0].token_id, token);
     assert!(get_logs().iter().any(|l| l.contains("\"nep245\"") && l.contains("mt_mint")));
     assert_eq!(pot.get_game(GAME.into()).unwrap().status, Status::Settled);
-    assert_eq!(pot.get_record(GAME.into()).unwrap().winners.len(), 2);
+    assert_eq!(pot.get_record(GAME.into()).unwrap().record.winners.len(), 2);
 }
 
 #[test]
@@ -415,4 +415,50 @@ fn a_series_rules_shares_split_the_pot() {
     ctx("anyone.testnet", 0, 3_000);
     let r = pot.settle(GAME.into(), 9, HEAD.into(), state, sig);
     assert_eq!(r.payouts[0].amount.0, 2 * STAKE * 3 / 4);
+}
+
+#[test]
+fn receipts_are_anchored_once_on_a_settled_game() {
+    let (mut pot, keeper) = setup();
+    let a = key(1);
+    enter(&mut pot, &a, "alice.testnet");
+    let state = state_with(&[seat_of(&a)], "");
+    let sig = sign_step(&keeper, GAME, HEAD, 9, &state);
+    ctx("operator.testnet", 0, 3_000);
+    pot.settle(GAME.into(), 9, HEAD.into(), state, sig);
+    let root = "0x3721579b67ccfa82c94a53826ff6e2b3398b3b45d7035867657a2587e6d96524";
+    pot.attest_receipts(GAME.into(), root.into(), 25);
+    let view = pot.get_record(GAME.into()).unwrap();
+    assert_eq!(view.receipts.unwrap().root, root);
+    assert_eq!(pot.get_receipts(GAME.into()).unwrap().count, 25);
+}
+
+#[test]
+#[should_panic(expected = "already anchored")]
+fn receipts_cannot_be_reanchored() {
+    let (mut pot, keeper) = setup();
+    let a = key(1);
+    enter(&mut pot, &a, "alice.testnet");
+    let state = state_with(&[seat_of(&a)], "");
+    let sig = sign_step(&keeper, GAME, HEAD, 9, &state);
+    ctx("operator.testnet", 0, 3_000);
+    pot.settle(GAME.into(), 9, HEAD.into(), state, sig);
+    pot.attest_receipts(GAME.into(), "0x".to_string() + &"11".repeat(32), 1);
+    pot.attest_receipts(GAME.into(), "0x".to_string() + &"22".repeat(32), 1);
+}
+
+#[test]
+#[should_panic(expected = "only the owner or an operator")]
+fn strangers_cannot_anchor_receipts() {
+    let (mut pot, _) = setup();
+    ctx("stranger.testnet", 0, 3_000);
+    pot.attest_receipts(GAME.into(), "0x".to_string() + &"11".repeat(32), 1);
+}
+
+#[test]
+#[should_panic(expected = "not settled")]
+fn receipts_need_a_settled_game() {
+    let (mut pot, _) = setup();
+    ctx("operator.testnet", 0, 3_000);
+    pot.attest_receipts(GAME.into(), "0x".to_string() + &"11".repeat(32), 1);
 }

@@ -47,3 +47,14 @@ test("a series' outcome names the winners, and its redacted rules state can be p
   expect(() => unredactSeries(redacted as never, { night: 4 })).toThrow("does not hash");
   expect(resultOf({ finished: true, game: { outcome: { kind: "Void", reason: "x" } } } as never).winners).toEqual([]);
 });
+
+test("the AI receipts root: sorted leaves, pairwise sha256, an odd last node carried up", async () => {
+  const { receiptsRoot } = await import("./near");
+  const { sha256 } = await import("@noble/hashes/sha2.js");
+  const leaf = (r: object) => sha256(new TextEncoder().encode(canonicalJson(r as never)));
+  const [a, b, c] = [{ at_ms: 1, chat_id: "a" }, { at_ms: 2, chat_id: "b" }, { at_ms: 3, chat_id: "c" }];
+  const ab = sha256(new Uint8Array([...leaf(a), ...leaf(b)]));
+  const root = sha256(new Uint8Array([...ab, ...leaf(c)]));
+  expect(receiptsRoot([c, a, b])).toBe(`0x${bytesToHex(root)}`);
+  expect(receiptsRoot([])).toBe(`0x${bytesToHex(sha256(new Uint8Array()))}`);
+});
