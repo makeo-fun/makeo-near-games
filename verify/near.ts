@@ -115,6 +115,18 @@ export type Record = {
 };
 export type Keeper = { pubkey: string; pcr0: string; registered_at_ms: number };
 
+/** A `settle` call's arguments for `game`, from a known transaction, straight from the NEAR RPC. */
+export async function settleArgsOfTx(game: string, txHash: string, sender: string): Promise<{ state: string; keeper_sig: string; tx: string } | null> {
+  const tx = await rpc<{ status: Record<string, unknown>; transaction: { actions: { FunctionCall?: { method_name: string; args: string } }[] } }>("tx", { tx_hash: txHash, sender_account_id: sender, wait_until: "FINAL" });
+  if ("Failure" in (tx.status ?? {})) throw new Error(`${txHash} is a settle the contract refused`);
+  for (const a of tx.transaction.actions) {
+    if (a.FunctionCall?.method_name !== "settle") continue;
+    const args = JSON.parse(Buffer.from(a.FunctionCall.args, "base64").toString()) as { game: string; state: string; keeper_sig: string };
+    if (args.game === game) return { state: args.state, keeper_sig: args.keeper_sig, tx: txHash };
+  }
+  return null;
+}
+
 /** The `settle` call's arguments for `game`, from the chain (via the nearblocks index, then the RPC). */
 export async function settleArgs(contract: string, game: string): Promise<{ state: string; keeper_sig: string; tx: string } | null> {
   const res = await fetch(`${NEARBLOCKS}/v1/account/${contract}/txns?method=settle&per_page=50`);
@@ -133,14 +145,16 @@ export async function settleArgs(contract: string, game: string): Promise<{ stat
   return null;
 }
 
-export async function verifyGame(contract: string, game: string, opts: { state?: string; keeperUrl?: string; receipts?: unknown } = {}) {
+export async function verifyGame(contract: string, game: string, opts: { state?: string; keeperUrl?: string; receipts?: unknown; tx?: string } = {}) {
   const [g, record, keepers] = await Promise.all([
     view<unknown>(contract, "get_game", { game }), view<Record | null>(contract, "get_record", { game }), view<Keeper[]>(contract, "get_keepers"),
   ]);
   if (!g) throw new Error(`no game ${game} on ${contract}`);
   if (!record) return { game: g, settled: false };
-  const found = opts.state ? { state: opts.state, keeper_sig: "", tx: "" } : await settleArgs(contract, game);
-  if (!found) throw new Error("could not find the settle transaction's state: pass --state");
+  const found = opts.state ? { state: opts.state, keeper_sig: "", tx: "" }
+    : opts.tx ? await settleArgsOfTx(game, opts.tx, record.settled_by)
+    : await settleArgs(contract, game);
+  if (!found) throw new Error("could not find the settle transaction's state: pass --tx <settle hash> or --state");
   const state_hash = stateHash(found.state);
   if (state_hash !== record.state_hash) throw new Error(`the state hashes to ${state_hash}, the record says ${record.state_hash}`);
   const step = stepDigest(game, record.head, record.count, state_hash);
@@ -175,14 +189,14 @@ if (import.meta.main) {
   const flag = (name: string) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : undefined; };
   const contract = flag("contract") ?? process.env.NEAR_POT_CONTRACT;
   if (!game || !contract) {
-    console.error("usage: NEAR_POT_CONTRACT=pot.testnet bun verify/near.ts <game> [--state state.json] [--keeper-url URL] [--receipts file.receipts.json]");
+    console.error("usage: NEAR_POT_CONTRACT=pot.testnet bun verify/near.ts <game> [--state state.json] [--keeper-url URL] [--receipts file.receipts.json] [--tx <settle hash>]");
     process.exit(2);
   }
   const statePath = flag("state");
   const receiptsPath = flag("receipts");
   const out = await verifyGame(contract, game, {
     state: statePath ? (await Bun.file(statePath).text()).trim() : undefined, keeperUrl: flag("keeper-url"),
-    receipts: receiptsPath ? JSON.parse(await Bun.file(receiptsPath).text()) : undefined,
+    receipts: receiptsPath ? JSON.parse(await Bun.file(receiptsPath).text()) : undefined, tx: flag("tx"),
   });
   console.log(JSON.stringify({ ok: true, ...out }, (_, v) => (typeof v === "bigint" ? v.toString() : v), 2));
 }
