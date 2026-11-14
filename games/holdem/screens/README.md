@@ -61,3 +61,4 @@ human-ai-noir-receipts.json: receipts from the live noir game with a human in Ch
 | glassino-live-deal.jpg | Live with NEAR AI Vega and probe: your A♥ 5♦, the flop materialising from the vault |
 | glassino-live-showdown.jpg | Live showdown, full board |
 | glassino-live-vega-wins.jpg | "THREE FOURS · Vega wins 12": Vega's 4♣ 4♠ with the 4♦ on board |
+glassino-live-receipts.json: receipts from the live Glassino game (build 16) with a human in Chrome, NEAR AI Vega and probe (86 AI decisions, all verified, none scripted).
