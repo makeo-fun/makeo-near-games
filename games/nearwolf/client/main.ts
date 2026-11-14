@@ -11,13 +11,13 @@ import "./noir/portraits.js";
 import "./noir/app.js";
 
 const PRACTICE_SEATS = 7;
-const AI_SEATS = 5;
+const AI_SEATS = 6;
 const PROJECT = "89411bc3-10c6-42ae-b17d-06442dec8b8d";
-/** The NEAR AI actor dispatcher (actors/src/dispatch.ts): it seats verified NEAR AI players in a
- *  room. `?ai=<https url>` points the page at another one (a tunnel). */
+/** The NEAR AI dispatcher (actors/): it seats verified NEAR AI players in a live free match.
+ *  `?ai=<url>` points the page at another one (a local one: http://localhost:8790). */
 const DISPATCH = (() => {
   const q = new URLSearchParams(location.search).get("ai");
-  return q && /^https?:\/\//.test(q) ? q.replace(/\/$/, "") : "http://localhost:8790";
+  return q && /^https?:\/\//.test(q) ? q.replace(/\/$/, "") : "https://dev.makeo.fun/api/near-agents";
 })();
 /** fetch with a deadline: an unreachable dispatcher must never hold the game up. */
 async function fetchJson(url: string, init: RequestInit = {}, ms = 5000): Promise<any> {
@@ -126,11 +126,12 @@ async function seatAi() {
   if (!ai || ai.asked || !room?.me) return;
   ai.asked = true;
   try {
-    const body = await fetchJson(`${DISPATCH}/seat`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ game: "nearwolf", project: PROJECT, room: room.id, ai: ai.wanted }) }, 15000);
-    if (!body.ok) throw new Error(body.error ?? "the dispatcher refused");
+    const body = await fetchJson(`${DISPATCH}/seat`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ project: PROJECT, room: room.id, ai: ai.wanted }) }, 15000);
+    if (!body.ok) throw new Error(body.error ?? body.message ?? "the dispatcher refused");
     ai.seats = body.seats ?? [];
+    if (typeof body.ai === "number") ai.wanted = body.ai;
   } catch (e) {
-    ai.error = `NEAR AI couldn't join: ${e instanceof Error ? e.message : String(e)}. The house will fill the empty seats.`;
+    ai.error = `NEAR AI couldn't join: ${e instanceof Error ? e.message : String(e)}. Start anyway and the house fills the empty seats.`;
   }
   if (room) drawLobby(room.lobby);
   while (ai && !ai.error && room && room.phase === "lobby" && ai.seated < ai.wanted) {
@@ -168,6 +169,7 @@ function drawLobby(lobby: MakeoLobby) {
       ? `<div class="ai-err">${esc(ai.error)}</div>`
       : `<div class="ai-line">${ai.seated >= ai.wanted ? "NEAR AI seated" : "Seating NEAR AI…"} ${ai.seated}/${ai.wanted}${model ? ` · ${esc(model)} in a TEE` : ""}<br>${ai.seats.map((x) => esc(x.name)).join(" · ")}</div>`;
   }
+  if (!ai && !lobby.entry && room.me && (room.me.host || lobby.canStart) && joined < lobby.max) h += `<button class="fr-b sm" id="fillAi">Fill empty seats with NEAR AI</button>`;
   h += `<button class="fr-b ghost sm" id="copyLink">Copy invite link</button>`;
   if (!room.me) h += `<button class="fr-b" id="joinBtn"><b>${lobby.entry ? `Join · ${esc(lobby.entry.stake)} ${esc(lobby.entry.token)}` : "Join"}</b></button>`;
   else if (room.me.host || lobby.canStart) {
@@ -185,6 +187,12 @@ function drawLobby(lobby: MakeoLobby) {
       toast(link);
     }
   };
+  const fill = document.querySelector("#fillAi") as HTMLButtonElement | null;
+  if (fill)
+    fill.onclick = () => {
+      ai = { wanted: Math.min(AI_SEATS, Math.max(1, 7 - joined)), seated: 0, seats: [], error: null, asked: false };
+      drawLobby(room!.lobby);
+    };
   const join = document.querySelector("#joinBtn") as HTMLButtonElement | null;
   if (join) join.onclick = () => room?.pay().catch((e) => toast(e?.message ?? String(e)));
   const startBtn = document.querySelector("#startBtn") as HTMLButtonElement | null;
