@@ -4,13 +4,33 @@
 // seat's own view from the rules. The classic table is ./classic.html.
 import type { GameView } from "../shared/nearwolf.js";
 import { PERSONAS, ROLES, scriptedMove } from "../shared/nearwolf.js";
-import { type NwReceipt, toNearwolfView } from "../shared/nearwolf-view.js";
+import { type NwAgent, type NwReceipt, toNearwolfView } from "../shared/nearwolf-view.js";
 import { createMakeoAdapter } from "./adapter.js";
 import "./noir/story.js";
 import "./noir/portraits.js";
 import "./noir/app.js";
 
 const PRACTICE_SEATS = 7;
+const AI_SEATS = 5;
+const PROJECT = "89411bc3-10c6-42ae-b17d-06442dec8b8d";
+/** The NEAR AI actor dispatcher (actors/src/dispatch.ts): it seats verified NEAR AI players in a
+ *  room. `?ai=<https url>` points the page at another one (a tunnel). */
+const DISPATCH = (() => {
+  const q = new URLSearchParams(location.search).get("ai");
+  return q && /^https?:\/\//.test(q) ? q.replace(/\/$/, "") : "http://localhost:8790";
+})();
+/** fetch with a deadline: an unreachable dispatcher must never hold the game up. */
+async function fetchJson(url: string, init: RequestInit = {}, ms = 5000): Promise<any> {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms);
+  try {
+    return await (await fetch(url, { ...init, signal: c.signal })).json();
+  } finally {
+    clearTimeout(t);
+  }
+}
+type AiSeat = { name: string; wallet?: string; model?: string | null };
+let ai: { wanted: number; seated: number; seats: AiSeat[]; error: string | null; asked: boolean } | null = null;
 const NEAR_POT: { network: string; contract: string | null } = { network: "testnet", contract: null };
 const $ = (s: string) => document.querySelector(s) as HTMLElement;
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
@@ -39,6 +59,10 @@ $("#front").addEventListener("click", (e) => {
   if (!b) return;
   $("#err").textContent = "";
   const go = b.dataset.go;
+  if (go === "nearai") {
+    ai = { wanted: AI_SEATS, seated: 0, seats: [], error: null, asked: false };
+    return void enter(() => Makeo.open({ with: "friends", seats: 12 }));
+  }
   if (go === "free") return step("free");
   if (go === "back") return step("main");
   if (go === "cpu") return void enter(() => Makeo.open({ with: "cpu", seats: PRACTICE_SEATS, controllers: cpuSeats() }));
@@ -97,17 +121,59 @@ async function enter(open: () => Promise<MakeoRoom | null>) {
   }
 }
 
+/** Ask the dispatcher for NEAR AI players once this player holds the host seat, then follow them in. */
+async function seatAi() {
+  if (!ai || ai.asked || !room?.me) return;
+  ai.asked = true;
+  try {
+    const body = await fetchJson(`${DISPATCH}/seat`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ game: "nearwolf", project: PROJECT, room: room.id, ai: ai.wanted }) }, 15000);
+    if (!body.ok) throw new Error(body.error ?? "the dispatcher refused");
+    ai.seats = body.seats ?? [];
+  } catch (e) {
+    ai.error = `NEAR AI couldn't join: ${e instanceof Error ? e.message : String(e)}. The house will fill the empty seats.`;
+  }
+  if (room) drawLobby(room.lobby);
+  while (ai && !ai.error && room && room.phase === "lobby" && ai.seated < ai.wanted) {
+    await new Promise((r) => setTimeout(r, 2000));
+    try {
+      const st = await fetchJson(`${DISPATCH}/status?room=${encodeURIComponent(room.id)}`);
+      ai.seated = st.seated ?? 0;
+      ai.wanted = st.wanted ?? ai.wanted;
+      if (Array.isArray(st.seats)) ai.seats = st.seats;
+    } catch {
+      /* keep trying */
+    }
+    if (room) drawLobby(room.lobby);
+  }
+}
+
 function drawLobby(lobby: MakeoLobby) {
   if (!room || room.phase !== "lobby") return;
   step("lobby");
+  if (ai && !ai.asked && room.me) void seatAi();
   const joined = lobby.seats.filter((s) => s.id).length;
   const kind = lobby.entry ? `Paid match · ${lobby.entry.stake} ${lobby.entry.token} · invite only` : "Free match · invite only";
   const host = lobby.seats.find((s) => s.id === lobby.host);
   let h = `<div class="head">${joined} joined · up to ${lobby.max}</div><div>${esc(kind)}. When the host starts, the keeper deals the roles and the house fills the table to seven seats.</div>`;
-  h += `<div class="seats">${lobby.seats.map((s) => (s.id ? `<span class="seat">${esc(s.id === room!.me?.id ? "You" : s.name ?? "Player")}${s.status && s.status !== "connected" ? ` · ${s.status}` : ""}</span>` : `<span class="seat empty">open seat</span>`)).join("")}</div>`;
+  const agentName = (id: string | null) => ai?.seats.find((x) => x.wallet && id && x.wallet.toLowerCase() === id.toLowerCase());
+  h += `<div class="seats">${lobby.seats.map((s) => {
+    if (!s.id) return `<span class="seat empty">open seat</span>`;
+    const a = agentName(s.id);
+    const label = s.id === room!.me?.id ? "You" : a ? `${a.name} · NEAR AI` : s.name ?? "Player";
+    return `<span class="seat${a ? " ai" : ""}">${esc(label)}${s.status && s.status !== "connected" ? ` · ${s.status}` : ""}</span>`;
+  }).join("")}</div>`;
+  if (ai) {
+    const model = ai.seats.find((x) => x.model)?.model;
+    h += ai.error
+      ? `<div class="ai-err">${esc(ai.error)}</div>`
+      : `<div class="ai-line">${ai.seated >= ai.wanted ? "NEAR AI seated" : "Seating NEAR AI…"} ${ai.seated}/${ai.wanted}${model ? ` · ${esc(model)} in a TEE` : ""}<br>${ai.seats.map((x) => esc(x.name)).join(" · ")}</div>`;
+  }
   h += `<button class="fr-b ghost sm" id="copyLink">Copy invite link</button>`;
   if (!room.me) h += `<button class="fr-b" id="joinBtn"><b>${lobby.entry ? `Join · ${esc(lobby.entry.stake)} ${esc(lobby.entry.token)}` : "Join"}</b></button>`;
-  else if (room.me.host || lobby.canStart) h += `<button class="fr-b" id="startBtn" ${lobby.canStart ? "" : "disabled"}><b>Start with ${joined}</b>${joined < lobby.min ? `<small>Needs ${lobby.min} to start</small>` : ""}</button>`;
+  else if (room.me.host || lobby.canStart) {
+    const waitAi = !!ai && !ai.error && ai.seated < ai.wanted;
+    h += `<button class="fr-b" id="startBtn" ${lobby.canStart && !waitAi ? "" : "disabled"}><b>${waitAi ? "Waiting for NEAR AI…" : `Start with ${joined}`}</b>${joined < lobby.min ? `<small>Needs ${lobby.min} to start</small>` : waitAi ? "" : "<small>The keeper deals the roles; the house fills any empty seat</small>"}</button>`;
+  }
   else h += `<div>Waiting for ${esc(host?.name ?? "the host")} to start · ${joined} joined</div>`;
   $("#lobby").innerHTML = h;
   ($("#copyLink") as HTMLButtonElement).onclick = async () => {
@@ -145,7 +211,7 @@ async function start() {
   NW.LIVE = true;
   NW.PRACTICE = room.kind === "practice";
   (window as any).NEARWOLF_PORTRAIT_BASE = "./noir/";
-  (window as any).NEARWOLF_BOOT = { adapter: createMakeoAdapter(room, { contract: NEAR_POT.contract, onRefused: toast, receipts: () => receipts, loadReceipts }) };
+  (window as any).NEARWOLF_BOOT = { adapter: createMakeoAdapter(room, { contract: NEAR_POT.contract, onRefused: toast, receipts: () => receipts, agents, loadReceipts }) };
   $("#front").hidden = true;
   try {
     NW.mount();
@@ -158,7 +224,28 @@ async function start() {
 
 /** AI receipts (actors/, published at game end as <instance>.receipts.json): `?receipts=<https url>`. */
 let receipts: NwReceipt[] = [];
+function agents(): Record<string, NwAgent> {
+  const out: Record<string, NwAgent> = {};
+  for (const x of ai?.seats ?? []) if (x.wallet) out[x.wallet] = { name: x.name, model: x.model ?? null };
+  return out;
+}
 async function loadReceipts() {
+  if (room && ai) {
+    // From the NEAR AI dispatcher, when it seated players in this room (also after a reload).
+    for (let i = 0; i < 5; i++) {
+      try {
+        const body = await fetchJson(`${DISPATCH}/receipts?room=${encodeURIComponent(room.id)}`, { cache: "no-store" }, 4000);
+        if (Array.isArray(body?.seats)) ai = { wanted: body.seats.length, seated: body.seats.length, seats: body.seats, error: null, asked: true };
+        const list = Array.isArray(body?.receipts) ? body.receipts : [];
+        if (list.length) receipts = list;
+        if (!body?.seats?.length || list.some((x: NwReceipt) => x.reasoning)) break;
+      } catch {
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 2500));
+    }
+    if (receipts.length) return;
+  }
   const url = new URLSearchParams(location.search).get("receipts");
   if (!url || !/^https:\/\//.test(url)) return;
   for (let i = 0; i < 5 && !receipts.length; i++) {

@@ -4,9 +4,9 @@
 // order, plus an `acted` event that closes the player's picker (when they act, or when the phase's
 // clock runs out first). Also exposed as window.NEARWOLF.createMakeoAdapter / toNearwolfView.
 import type { GameView } from "../shared/nearwolf.js";
-import { type NearwolfView, type NwEvent, type NwPending, type NwReceipt, fromChoice, toNearwolfView } from "../shared/nearwolf-view.js";
+import { type NearwolfView, type NwAgent, type NwEvent, type NwPending, type NwReceipt, fromChoice, toNearwolfView } from "../shared/nearwolf-view.js";
 
-export function createMakeoAdapter(room: MakeoRoom, options: { receipts?: () => NwReceipt[]; loadReceipts?: () => Promise<void>; contract?: string | null; onRefused?: (message: string) => void } = {}) {
+export function createMakeoAdapter(room: MakeoRoom, options: { receipts?: () => NwReceipt[]; agents?: () => Record<string, NwAgent>; loadReceipts?: () => Promise<void>; contract?: string | null; onRefused?: (message: string) => void } = {}) {
   let game: GameView | null = null;
   let onView: ((view: NearwolfView) => void) | null = null;
   const log: NwEvent[] = [];
@@ -40,7 +40,7 @@ export function createMakeoAdapter(room: MakeoRoom, options: { receipts?: () => 
       return;
     }
     game = g;
-    const nv = toNearwolfView(g, { receipts: options.receipts?.(), contract: options.contract ?? null, practice: room.kind === "practice" });
+    const nv = toNearwolfView(g, { receipts: options.receipts?.(), agents: options.agents?.(), contract: options.contract ?? null, practice: room.kind === "practice" });
     const key = keyOf(g);
     // A picker left open when its phase moved on (the clock ran out): close it with no choice.
     if (pending && pendingKey !== key) closePicker(null);

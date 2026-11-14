@@ -27,9 +27,12 @@ import type { GameActor, Persona } from "../../actors/src/types";
 type AnyView = GameView | { game: GameView | null };
 const game = (v: AnyView): GameView | null => ("seats" in v ? v : v.game);
 
-export const persona: Persona[] = PERSONAS.map((p) => ({
-  id: p.name.toLowerCase(),
-  name: p.name,
+/** The AI players' own names (what the lobby shows). At the table each plays a keeper-dealt
+ *  character from the cast instead, so seats stay indistinguishable until the end. */
+const AGENT_NAMES = ["Vesper", "Quill", "Marrow", "Sable", "Wick", "Thorne", "Ember", "Rue", "Halcyon"];
+export const persona: Persona[] = PERSONAS.slice(0, AGENT_NAMES.length).map((p, i) => ({
+  id: AGENT_NAMES[i].toLowerCase(),
+  name: AGENT_NAMES[i],
   voice: p.voice,
   style: p.style,
   avatar: p.color,

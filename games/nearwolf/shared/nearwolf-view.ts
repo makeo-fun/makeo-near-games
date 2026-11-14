@@ -31,7 +31,9 @@ function seatOf(v: GameView, id: unknown): number | null {
   return i >= 0 ? i : null;
 }
 
-export function toNearwolfView(v: GameView, extra: { receipts?: NwReceipt[]; network?: string; contract?: string | null; practice?: boolean } = {}): NearwolfView {
+/** A NEAR AI player, by wallet: its own name and model (from the actor dispatcher). */
+export type NwAgent = { name: string; model?: string | null };
+export function toNearwolfView(v: GameView, extra: { receipts?: NwReceipt[]; agents?: Record<string, NwAgent>; network?: string; contract?: string | null; practice?: boolean } = {}): NearwolfView {
   const id = (i: number) => seatId(v, i);
   const me = v.you;
   const seats: NwSeat[] = v.seats.map((s) => {
@@ -99,11 +101,15 @@ export function toNearwolfView(v: GameView, extra: { receipts?: NwReceipt[]; net
     const roles: Record<string, UiRole | null> = {};
     const kinds: Record<string, "HUMAN" | "AI" | "HOUSE" | "CPU"> = {};
     const confessionals: Record<string, Record<number, string>> = {};
+    const agents: Record<string, NwAgent> = {};
+    const agentOf = (w: string | null) => (w ? Object.entries(extra.agents ?? {}).find(([k]) => k.toLowerCase() === w.toLowerCase())?.[1] : undefined);
     for (const s of v.seats) {
       roles[id(s.seat)] = up(s.role);
       const mine = byWallet(s.wallet);
       // HOUSE: played by the rules themselves (scripted, inside the keeper), not a NEAR AI model.
-      kinds[id(s.seat)] = extra.practice && s.seat !== me ? "CPU" : s.house ? "HOUSE" : mine.length ? "AI" : "HUMAN";
+      const agent = agentOf(s.wallet);
+      if (agent) agents[id(s.seat)] = agent;
+      kinds[id(s.seat)] = extra.practice && s.seat !== me ? "CPU" : s.house ? "HOUSE" : mine.length || agent ? "AI" : "HUMAN";
       for (const x of mine) if (x.reasoning) (confessionals[id(s.seat)] ??= {})[x.round] = x.reasoning;
     }
     log.push({
@@ -111,7 +117,8 @@ export function toNearwolfView(v: GameView, extra: { receipts?: NwReceipt[]; net
       winner: v.winner === "village" ? "VILLAGE" : "WOLVES",
       roles,
       kinds,
-      model: receipts[0]?.model ?? null,
+      model: receipts[0]?.model ?? Object.values(agents)[0]?.model ?? null,
+      agents,
       commitment: null,
       seed: null,
       receipts: receipts.map((x) => ({ ...x, seat: v.seats.find((s) => s.wallet && s.wallet.toLowerCase() === String(x.seat).toLowerCase()) ? id(v.seats.find((s) => s.wallet && s.wallet.toLowerCase() === String(x.seat).toLowerCase())!.seat) : x.seat })),
