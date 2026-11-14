@@ -12,9 +12,9 @@ cd "$(dirname "$0")"
 export NEAR_NETWORK=testnet NEAR_POT_CONTRACT=${NEAR_POT_CONTRACT:-pot.makeo-near.testnet}
 KEEPER=${KEEPER_URL:-https://keeper.makeo.fun}
 GAMES=(
-  "89411bc3-10c6-42ae-b17d-06442dec8b8d:live:faa2f7de6968ba0132a95e19909d9b99befe26f194bfde88d8ba44798b78efff:free|NEARWOLF paid match"
-  "795650a8-2999-4971-b388-469c19b9c362:live:09f847d247323028fcd88c79114071af76879b6573e9de07ac97753f8473f4b1:free|Hold'em paid match"
-  "795650a8-2999-4971-b388-469c19b9c362:live:d382e6d7fec4d6d16d87f8d4326328dca923b18edaf9e1d9688ad1eb27905e30:free|Hold'em (attacked on chain)"
+  "89411bc3-10c6-42ae-b17d-06442dec8b8d:live:faa2f7de6968ba0132a95e19909d9b99befe26f194bfde88d8ba44798b78efff:free|H7BcxA4mP3u7xfTVhpGp7ZbvKYYxXzM6FMrwPFsiBDG5|NEARWOLF paid match"
+  "795650a8-2999-4971-b388-469c19b9c362:live:09f847d247323028fcd88c79114071af76879b6573e9de07ac97753f8473f4b1:free|DasVfojAm89e4Sz5Xw9nqzWekvbTZ8jqyjLAPe2huoDs|Hold'em paid match"
+  "795650a8-2999-4971-b388-469c19b9c362:live:d382e6d7fec4d6d16d87f8d4326328dca923b18edaf9e1d9688ad1eb27905e30:free|7tjeL9B7puA5h8bY4x7vwTbZvwaiJq8Tk3XHPkbJN6GU|Hold'em (attacked on chain)"
 )
 LOG=$(mktemp -d)
 RESULTS=()
@@ -41,9 +41,9 @@ else check "contract unit tests (cargo test: forged entries, tampering, refunds,
 
 echo "== on chain (NEAR testnet) and the live enclave"
 for g in "${GAMES[@]}"; do
-  id=${g%%|*}; label=${g#*|}
+  IFS='|' read -r id tx label <<<"$g"
   receipts="actors/receipts/$(echo "$id" | tr ':' '_').receipts.json"
-  args=("$id" --keeper-url "$KEEPER")
+  args=("$id" --tx "$tx" --keeper-url "$KEEPER")
   [ -f "$receipts" ] && args+=(--receipts "$receipts")
   check "$label: settled on the keeper's signed result, live Nitro attestation, AI receipts root" bun verify/near.ts "${args[@]}"
 done
