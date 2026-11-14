@@ -196,7 +196,7 @@ export async function runActors(options: Omit<SeatOptions, "persona" | "receipts
     const transport = options.transportFor ? options.transportFor(persona, i) : options.transport;
     seats.push(await new ActorSeat({ ...options, transport, persona, receipts }).start());
   }
-  const info = await options.transport.info();
+  const info = await seats[0]!.options.transport.info();
   const timeout = options.timeoutMs ? Bun.sleep(options.timeoutMs).then(() => "timeout" as const) : new Promise<never>(() => {});
   const outcome = await Promise.race([Promise.all(seats.map((s) => s.finished)).then(() => "finished" as const), timeout]);
   seats.forEach((s) => s.stop());
