@@ -6,17 +6,23 @@ version = 1
 # commits to every card at the deal, and each player sees only their own two.
 hidden = true
 
+# A sit-and-go: 2 to 6 players pay the same entry and start with the same chips; blinds double
+# every 5 hands; the game ends when one player holds every chip or after 60 hands, and the chip
+# leader takes the pot (tied leaders split it). The pot can also settle on NEAR (makeo-pot).
 [money]
-format = "table"
+format = "match"
 players = { min = 2, max = 6 }
 payout = "winner-takes-all"
-entry_window_minutes = 120
-stakes = ["0.01", "0.1"]
-buyin = { min = 100, max = 400 }
+draw = "split"
+entry_window_minutes = 30
+stakes = ["1", "5"]
 
 [rules]
+start_chips = 100
 small_blind = 1
 big_blind = 2
+hands_per_level = 5
+max_hands = 60
 turn_ms = 25000
 
 [fairness]

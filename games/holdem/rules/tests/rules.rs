@@ -3,7 +3,7 @@
 use makeo_runtime::cards::{self, Card};
 use makeo_runtime::table::Seat;
 use makeo_runtime::{RulesContext, TableRules};
-use near_holdem::{commit, Config, Game, Hand, Move, Street};
+use near_holdem::{commit, Config, Holdem as Game, Hand, Move, Street};
 use serde_json::Value;
 
 const SECRET: &str = "0x5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e";

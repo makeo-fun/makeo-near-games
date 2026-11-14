@@ -3,7 +3,7 @@
 use makeo_runtime::testkit::{self, wallet, Harness};
 use makeo_runtime::TableRules;
 use makeo_series::table::{Program, State};
-use near_holdem::{Game, Hand, SHOWDOWN_MS};
+use near_holdem::{Holdem as Game, Hand, SHOWDOWN_MS};
 use serde_json::{json, Value};
 
 type P = Program<Game>;

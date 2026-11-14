@@ -18,7 +18,8 @@ use makeo_runtime::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-pub struct Game;
+/// One hand of Hold'em (the hand engine), as a table game. `Game` (sitgo.rs) plays a whole sit-and-go of these.
+pub struct Holdem;
 
 /// How long a showdown stays on screen before the next deal.
 pub const SHOWDOWN_MS: u64 = 8_000;
@@ -303,8 +304,8 @@ pub fn pots(committed: &[u64], scores: &[Option<Score>]) -> Vec<Pot> {
     out
 }
 
-impl TableRules for Game {
-    const ID: &'static str = "makeo.near-holdem.v1";
+impl TableRules for Holdem {
+    const ID: &'static str = "makeo.near-holdem.hand.v1";
     type Config = Config;
     type Hand = Hand;
     type Action = Move;
@@ -525,11 +526,11 @@ fn unreachable_allin() -> Result<&'static str> {
 }
 
 #[cfg(target_arch = "wasm32")]
-makeo_wasm_abi::export_table!(Game);
+makeo_wasm_abi::export_rules!(Game);
 
 /// How `makeo check` plays this game at random: mostly legal moves, some illegal ones.
 #[cfg(feature = "check")]
-impl makeo_conformance::table::TableFuzz for Game {
+impl makeo_conformance::table::TableFuzz for Holdem {
     fn config() -> Config {
         Config { small_blind: 1, big_blind: 2, turn_ms: 25_000 }
     }
@@ -547,3 +548,6 @@ impl makeo_conformance::table::TableFuzz for Game {
         vec![m]
     }
 }
+
+mod sitgo;
+pub use sitgo::{Game, SitGo, SitGoConfig, FOLD_PAUSE_MS};
