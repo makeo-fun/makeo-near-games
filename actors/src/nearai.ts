@@ -18,7 +18,7 @@ export interface Inference {
   complete(prompt: Prompt): Promise<Completion>;
 }
 
-export type NearAiOptions = { apiKey: string; model?: string; timeoutMs?: number; maxTokens?: number; temperature?: number; fetch?: typeof fetch; base?: string };
+export type NearAiOptions = { apiKey: string; model?: string; /** Let the model think first (slower, costs tokens). Default off. */ thinking?: boolean; timeoutMs?: number; maxTokens?: number; temperature?: number; fetch?: typeof fetch; base?: string };
 
 export class NearAiClient implements Inference {
   readonly model: string;
@@ -34,6 +34,9 @@ export class NearAiClient implements Inference {
       temperature: this.options.temperature ?? 0.7,
       max_tokens: this.options.maxTokens ?? 600,
       stream: false,
+      // Reasoning models (Qwen3, GLM) think by default and can spend the whole budget on it
+      // (docs.near.ai/cloud/reasoning-models). Off unless asked for; the move JSON carries a short reasoning.
+      chat_template_kwargs: { enable_thinking: this.options.thinking ?? false },
     });
     const response = await (this.options.fetch ?? fetch)(`${this.options.base ?? NEAR_AI_BASE}/chat/completions`, {
       method: "POST",
@@ -65,7 +68,7 @@ export function extractJson(text: string): unknown {
 /** NEAR AI when NEAR_AI_API_KEY is set; null (scripted moves) otherwise. */
 export function nearAiFromEnv(env: Record<string, string | undefined> = process.env): NearAiClient | null {
   if (!env.NEAR_AI_API_KEY) return null;
-  return new NearAiClient({ apiKey: env.NEAR_AI_API_KEY, model: env.NEAR_AI_MODEL || DEFAULT_MODEL });
+  return new NearAiClient({ apiKey: env.NEAR_AI_API_KEY, model: env.NEAR_AI_MODEL || DEFAULT_MODEL, thinking: env.NEAR_AI_THINKING === "1" });
 }
 
 /**

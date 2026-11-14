@@ -134,8 +134,10 @@ export class ActorSeat {
     }
     const prompt = o.actor.prompt(view, publicLog, o.persona);
     let result;
+    const t0 = Date.now();
     try {
       result = await o.inference.complete(prompt);
+      base.inference_ms = Date.now() - t0;
     } catch (e) {
       const move = this.scripted(view, legal);
       return { move, receipt: { ...base, move, fallback: `NEAR AI: ${(e as Error).message}` }, evidence: undefined };
@@ -148,9 +150,11 @@ export class ActorSeat {
     };
     const evidence = { chat_id: result.chat_id, request_body: result.request_body, response_body: result.response_body };
     if (o.verify) {
+      const t1 = Date.now();
       try {
         const v = await o.verify({ chat_id: result.chat_id, model: o.inference.model, request_body: result.request_body, response_body: result.response_body });
         Object.assign(receipt, { verified: v.verified, signature: v.signature, signing_address: v.signing_address, signed_text: v.signed_text, signer: v.signer });
+        receipt.verify_ms = Date.now() - t1;
         if (!v.verified) this.log(`signature check failed: ${v.reason}`);
       } catch (e) {
         this.log(`signature check error: ${(e as Error).message}`);

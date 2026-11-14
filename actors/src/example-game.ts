@@ -61,7 +61,9 @@ export const lastCardActor: GameActor<LastCardView, LastCardMove, LastCardEvent>
     };
   },
   parseMove(json, legal) {
-    const play = Number((json as { move?: { play?: unknown } })?.move?.play);
+    // Models answer {"move": {"play": 8}} or just {"move": 8}: accept both.
+    const move = (json as { move?: unknown })?.move;
+    const play = Number(typeof move === "object" && move !== null ? (move as { play?: unknown }).play : move);
     return legal.find((m) => m.play === play) ?? null;
   },
 };

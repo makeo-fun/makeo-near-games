@@ -56,6 +56,9 @@ export type Receipt = {
   /** The text the signature covers ("<request sha256>:<response sha256>"). */
   signed_text?: string | null;
   at_ms: number;
+  /** Time for the NEAR AI completion, and for fetching + checking its signature. */
+  inference_ms?: number;
+  verify_ms?: number;
 };
 
 /** The exact bytes the hashes cover, kept beside the receipt so anyone can recheck it. */

@@ -77,6 +77,6 @@ if (human !== "none") {
 
 const { outcome, file } = await running;
 console.log(`\ngame ${outcome}. ${receipts.all().length} AI receipts${file ? ` → ${file}` : ""}`);
-for (const r of receipts.all()) console.log(`  r${r.round} ${room.name(r.seat)}: ${JSON.stringify(r.move)} ${r.fallback ? `[scripted: ${r.fallback}]` : r.verified ? `[verified, ${r.signer} ${r.signing_address}]` : "[unverified]"}`);
+for (const r of receipts.all()) console.log(`  r${r.round} ${room.name(r.seat)}: ${JSON.stringify(r.move)} ${r.fallback ? `[scripted: ${r.fallback}]` : r.verified ? `[verified, ${r.signer} ${r.signing_address}]` : "[unverified]"} ${r.inference_ms ?? "-"}ms ai / ${r.verify_ms ?? "-"}ms verify`);
 room.close();
 process.exit(0);
