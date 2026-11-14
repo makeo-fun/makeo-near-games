@@ -26,3 +26,27 @@ signature checking (high-S WebCrypto signatures).
 |---|---|
 | human-with-ai-seated.jpg | You (human) seated with Vega and Rook (AI · TEE), your own A♥ 4♠ face up, your move |
 | human-with-ai-showdown.jpg | Three-way all-in: Rook (AI) wins with queens and eights over two pairs of eights |
+
+## The noir client, live (published build 13)
+
+A signed-in human in Chrome joined a live free match with two NEAR AI seats (Vega, Rook; join.ts, Qwen)
+in the noir show engine (client/noir) on the live adapter.
+
+| File | What |
+|---|---|
+| noir-live-sealed.jpg | Your keeper-dealt cards arrive sealed: break the wax seal to open them |
+| noir-live-your-hand.jpg | Your hand face up (A♠ 4♦), the action picker, AI seats' cards sealed |
+| noir-live-river.jpg | The river out of the keeper's vault: "revealed card matches the keeper's commitment ✓" with the real hash |
+| noir-live-showdown.jpg | "VEGA WINS 8 · Pair of Queens. You held ace high." |
+
+## The glass client, live (published build 15)
+
+The Zero-G Glass Casino UI (from games/holdem/ui2) on the live adapter. A signed-in human in Chrome
+played a live free match with the NEAR AI seat Vega and the platform's test seat "probe".
+
+| File | What |
+|---|---|
+| glass-live-preflop.jpg | Your 6♠ 5♥ face up, calling 5; seats as glass orbs, chips on the felt |
+| glass-live-allin.jpg | A three-way all-in, pot 207 |
+| glass-live-flop.jpg | The next hand: "THE FLOP · from the vault", your 5♣ 4♥ |
+| glass-live-next-hand.jpg | After winning the all-in (205 chips), probe out, Vega on 91 |
