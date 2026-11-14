@@ -683,6 +683,7 @@ function seatTag(i: number) {
   const s = v!.seats[i];
   if (s.house) return `<span class="htag house">House</span>`;
   if (i === me()) return `<span class="htag h">You</span>`;
+  if (room?.kind === "practice") return `<span class="htag house">CPU</span>`;
   const r = receiptsFor(s.wallet);
   return r.length ? `<span class="htag ai">AI · ${esc(r[0].model?.split("/").pop() ?? "")}</span>` : `<span class="htag h">Player</span>`;
 }
@@ -1022,6 +1023,7 @@ function drawEnd(end?: MakeoEnd) {
   const w = v.winner;
   const house = v.seats.filter((s) => s.house).length;
   const entrants = v.seats.length - house;
+  const cpu = room?.kind === "practice" ? v.seats.length - 1 : 0;
   const ai = v.seats.filter((s) => !s.house && receiptsFor(s.wallet).length).length;
   const days = v.round;
   const wolves = v.seats.filter((s) => s.role === "wolf").map((s) => fullName(s.seat));
@@ -1030,7 +1032,7 @@ function drawEnd(end?: MakeoEnd) {
   E.innerHTML = `<div class="panel endcard">
    <div class="ek">GAME OVER · ${days} ${days === 1 ? "DAY" : "DAYS"}</div><div class="et">${w === "village" ? "The village wins." : "The wolves win."}</div>
    <div class="ed">The wolves were ${wolves.map(esc).join(" and ")}.</div>
-   <div class="split"><span class="h">${entrants - ai} ${entrants - ai === 1 ? "player" : "players"}</span><span class="sep"></span><span class="a">${ai} AI actors</span><span class="sep"></span><span class="a">${house} house seats</span></div>
+   <div class="split">${cpu ? `<span class="h">1 player</span><span class="sep"></span><span class="a">${cpu} CPU seats (practice)</span>` : `<span class="h">${entrants - ai} ${entrants - ai === 1 ? "player" : "players"}</span><span class="sep"></span><span class="a">${ai} AI actors</span><span class="sep"></span><span class="a">${house} house seats</span>`}</div>
    <div class="roster">${v.seats
      .map(
        (s, k) =>
