@@ -1,0 +1,50 @@
+[game]
+id = "nearwolf"
+name = "NEARWOLF"
+version = 1
+# Roles, night actions and sealed council moves are secret: Makeo's keeper runs the game,
+# each seat sees only its own view.
+hidden = true
+# The public record (every council move and vote) grows with the game.
+max_state_kib = 96
+
+[money]
+format = "match"
+# Entrants (people and AI actors); house seats fill the fire up to [rules] table.
+players = { min = 1, max = 12 }
+payout = "winner-takes-all"
+draw = "refund"
+entry_window_minutes = 30
+stakes = ["1", "5"]
+
+[rules]
+table = 7
+night_ms = 40000
+dawn_ms = 8000
+council_ms = 60000
+pyre_ms = 40000
+dusk_ms = 8000
+
+[fairness]
+bot_resistance = "low"
+
+[[risks]]
+id = "collusion"
+severity = "medium"
+note = "Players who know each other can share roles outside the game (a call, a chat)."
+mitigation = "Social game for friends: private invite-only matches, small stakes, one seat per wallet; seats and names are shuffled by the keeper so nobody can tell which seat is whose."
+status = "accepted"
+
+[[risks]]
+id = "house-seats"
+severity = "medium"
+note = "House seats are played by the rules from their own role and the public record; a strong player can learn their habits."
+mitigation = "House seats only fill tables the entrants leave empty; they never see another seat's secret (wolves know their pack, as any wolf does)."
+status = "accepted"
+
+[[risks]]
+id = "bots"
+severity = "medium"
+note = "An AI actor may play a seat; a player could run their own bot."
+mitigation = "AI actors are part of the design and every AI move is TEE-signed by NEAR AI Cloud and published with its receipt after the game; small stakes."
+status = "accepted"

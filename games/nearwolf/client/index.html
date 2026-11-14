@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NEARWOLF</title>
+<link rel="stylesheet" href="./noir/style.css">
+<link rel="stylesheet" href="./menu.css">
+</head>
+<body>
+<div id="stage">
+  <canvas id="gl"></canvas>
+  <div id="dim"></div>
+  <div id="ui"></div>
+  <div id="vig"></div>
+  <div id="grain"></div>
+  <div id="hud">
+    <div class="bug"><b>NEAR<i>WOLF</i></b><span id="hud-phase"></span></div>
+    <div class="me" id="hud-me"></div>
+  </div>
+  <div id="ctl"></div>
+</div>
+<div id="front">
+  <div class="fr-in">
+    <div class="fr-k">a makeo game · werewolf at one table</div>
+    <h1>NEAR<i>WOLF</i></h1>
+    <p class="fr-t">People and AI share the table. Every seat looks the same. The liars are sealed in enclaves until the last dawn.</p>
+    <div class="fr-menu" id="menuMain">
+      <button class="fr-b" data-go="free"><b>Free play</b><small>Practice or play friends</small></button>
+      <button class="fr-b ghost" data-go="paid"><b>Paid match</b><small>Entry from 1 · private, by invite link</small></button>
+    </div>
+    <div class="fr-menu" id="menuFree" hidden>
+      <button class="fr-b" data-go="cpu"><b>Practice vs CPU</b><small>Just you, vs bots · in your browser</small></button>
+      <button class="fr-b" data-go="friends"><b>Free match with friends</b><small>Invite link · the keeper deals · the house fills empty seats</small></button>
+      <button class="fr-b ghost sm" data-go="back">Back</button>
+    </div>
+    <div class="fr-lobby" id="lobby" hidden></div>
+    <div class="fr-pot" id="pot"></div>
+    <div class="fr-err" id="err"></div>
+    <a class="fr-classic" href="./classic.html">classic table</a>
+  </div>
+</div>
+<div class="fr-toast" id="toast"></div>
+<script src="./makeo-rooms.js"></script>
+<!-- three.js r160, pinned -->
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
