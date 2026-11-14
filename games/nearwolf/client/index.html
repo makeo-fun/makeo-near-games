@@ -1,8 +1,162 @@
 <!doctype html>
-<html><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NEARWOLF</title><link rel="stylesheet" href="./styles.css"></head>
-<body><main id="game"><h1>Your Makeo game</h1>
-<p id="status">Use the saved brief and Makeo skills to build your game.</p></main>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>NEARWOLF</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body data-screen="landing" data-sky="night">
+<div class="sky"><div class="s-night"></div><div class="s-dawn"></div><div class="s-day"></div><div class="s-pyre"></div></div>
+<canvas id="stars"></canvas>
+<div class="fog"></div>
+<div class="glow" id="glow"></div>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-seal" viewBox="0 0 24 24"><path d="M12 2.5l7.5 3v5.6c0 4.6-3.2 8.6-7.5 10.4-4.3-1.8-7.5-5.8-7.5-10.4V5.5z"/><path d="M8.6 12.2l2.4 2.4 4.6-4.8"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-paw" viewBox="0 0 24 24"><ellipse cx="12" cy="16" rx="4.5" ry="3.8"/><circle cx="6" cy="10.5" r="1.8"/><circle cx="9.5" cy="6.5" r="1.8"/><circle cx="14.5" cy="6.5" r="1.8"/><circle cx="18" cy="10.5" r="1.8"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2.5l7.5 3v5.6c0 4.6-3.2 8.6-7.5 10.4-4.3-1.8-7.5-5.8-7.5-10.4V5.5z"/><path d="M12 8.5v7M8.5 12h7"/></symbol>
+  <symbol id="i-wheat" viewBox="0 0 24 24"><path d="M12 22V9"/><path d="M12 13c-3 0-4.5-2-4.5-4.5 2.5 0 4.5 1.5 4.5 4.5zM12 13c3 0 4.5-2 4.5-4.5-2.5 0-4.5 1.5-4.5 4.5zM12 8.5c-2 0-3-1.6-3-3.5 2 0 3 1.4 3 3.5zM12 8.5c2 0 3-1.6 3-3.5-2 0-3 1.4-3 3.5zM12 4.5V2"/></symbol>
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 2.5c.8 3.6 5.5 5.6 5.5 11a5.5 5.5 0 0 1-11 0c0-2.4 1.1-4 2.3-5 .1 2 1 3.2 2.2 3.4-.9-3.3.1-6.9 1-9.4z"/></symbol>
+  <symbol id="i-claim" viewBox="0 0 24 24"><circle cx="12" cy="9" r="5"/><path d="M8.5 13l-1.5 8 5-2.6 5 2.6-1.5-8"/></symbol>
+  <symbol id="i-accuse" viewBox="0 0 24 24"><path d="M4 12h13M13 6.5L18.5 12 13 17.5"/><circle cx="21" cy="12" r=".6"/></symbol>
+  <symbol id="i-vouch" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"/></symbol>
+  <symbol id="i-silent" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3.2"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5l11 7-11 7z"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></symbol>
+  <symbol id="i-ledger" viewBox="0 0 24 24"><rect x="4" y="3.5" width="16" height="17" rx="2.5"/><path d="M8 8.5h8M8 12h8M8 15.5h5"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+  <symbol id="i-near" viewBox="0 0 24 24"><path d="M5 19V5l14 14V5"/></symbol>
+</svg>
+
+<header class="bar">
+  <div class="logo"><span class="dotmoon"></span>NEARWOLF</div>
+  <div class="room" id="roomInfo"></div>
+  <div class="right">
+    <button class="chip ok" id="keeperChip"><svg class="i"><use href="#i-seal"/></svg><span>Keeper attested</span></button>
+    <button class="chip recbtn" id="recBtn"><svg class="i"><use href="#i-ledger"/></svg>Record</button>
+  </div>
+</header>
+
+<main>
+  <!-- LANDING -->
+  <section id="landing" class="screen on">
+    <div class="hero">
+      <div id="moonLanding"></div>
+      <div>
+        <div class="wordmark"><span class="near">NEAR</span><span class="wolf">WOLF</span></div>
+      </div>
+      <p class="tagline">Seats around one fire. Some are people, some are AI. <b>Nobody knows which until dawn breaks for the last time</b>, and nobody can cheat, including the AI.</p>
+      <div class="panel lp-card" id="menu">
+        <div class="lp-row" style="flex-wrap:wrap"><span class="lbl">This fire</span><span id="distLabel" class="dist"></span></div>
+        <div class="lp-row"><span>People and AI actors share the table.<br><b>Every seat looks the same.</b></span><span class="chip">~10 min</span></div>
+        <div class="menu" id="menuMain">
+          <button class="btn wide" data-go="free"><svg class="i"><use href="#i-play"/></svg><span>Free play<small>Practice or play friends</small></span></button>
+          <button class="btn ghost wide" data-go="paid"><svg class="i"><use href="#i-near"/></svg><span>Paid match<small>Entry from 1 · private, by invite link</small></span></button>
+        </div>
+        <div class="menu" id="menuFree" hidden>
+          <button class="btn wide" data-go="cpu"><svg class="i"><use href="#i-chip"/></svg><span>Practice vs CPU<small>Just you, vs bots · in your browser</small></span></button>
+          <button class="btn zip wide" data-go="friends"><svg class="i"><use href="#i-lock"/></svg><span>Free match with friends<small>Invite link · keeper deals the roles · empty seats are played by the house</small></span></button>
+          <button class="btn ghost sm" data-go="back">Back</button>
+        </div>
+        <div class="pot" id="potCard"></div>
+        <div class="lp-err" id="menuErr"></div>
+      </div>
+      <div class="pillars">
+        <span class="chip"><svg class="i"><use href="#i-lock"/></svg>Roles dealt by an attested keeper</span>
+        <span class="chip"><svg class="i"><use href="#i-chip"/></svg>AI actors on NEAR AI Cloud</span>
+        <span class="chip"><svg class="i"><use href="#i-near"/></svg>Every game recorded on NEAR</span>
+      </div>
+      <div class="by">a Makeo game</div>
+    </div>
+  </section>
+
+  <!-- LOBBY -->
+  <section id="lobby" class="screen">
+    <div class="wrap">
+      <div class="lring" id="lring"><div class="mid" id="lmid"></div></div>
+      <div class="lstat" id="lstat">Gathering at the fire…</div>
+      <div class="lsub" id="lsub">People take seats first. When the host starts, the house fills the empty seats. Every seat looks the same.</div>
+      <div class="lact" id="lact"></div>
+      <div class="commit" id="lcommit"></div>
+    </div>
+  </section>
+
+  <!-- ROLE REVEAL -->
+  <section id="reveal" class="screen">
+    <div class="wrap">
+      <div class="sh-k" style="justify-content:center"><svg class="i"><use href="#i-lock"/></svg>Your private view</div>
+      <div class="rc-scene"><div class="rcard" id="rcard">
+        <div class="rface rback"><div class="pat"></div><div id="moonCard"></div><div class="seal">SEALED TO YOU</div><div class="tap">Tap to break the seal</div></div>
+        <div class="rface rfront" id="rfront"></div>
+      </div></div>
+      <button class="btn" id="enterBtn" style="opacity:0;pointer-events:none">Enter the village</button>
+    </div>
+  </section>
+
+  <!-- GAME -->
+  <section id="game" class="screen">
+    <div class="g-sheet"><div class="panel" style="display:flex;flex-direction:column;min-height:0;flex:1"><div class="sheet" id="sheet"></div></div></div>
+    <div class="g-stage">
+      <div class="banner">
+        <div class="ph"><div class="ph-k" id="phK">Night 1</div><div class="ph-t" id="phT">Moonrise</div><div class="ph-i" id="phI"></div></div>
+        <div id="moonGame"></div>
+        <div class="clock" id="clock">
+          <div class="ring"><svg viewBox="0 0 68 68"><circle class="trk" cx="34" cy="34" r="30"/><circle class="prg" id="prg" cx="34" cy="34" r="30" stroke-dasharray="188.5" stroke-dashoffset="0"/></svg><b id="clockT">0:20</b></div>
+          <div class="sc" id="sealCount"></div>
+        </div>
+      </div>
+      <div class="stage" id="stage">
+        <div class="table"></div>
+        <div class="fire"><div class="fglow"></div>
+          <svg viewBox="0 0 100 120">
+            <defs>
+              <radialGradient id="fg1" cx="50%" cy="85%" r="70%"><stop offset="0" stop-color="#ffe7a3"/><stop offset=".45" stop-color="#ffb35c"/><stop offset="1" stop-color="#ff5b4a" stop-opacity=".0"/></radialGradient>
+              <radialGradient id="fg2" cx="50%" cy="85%" r="70%"><stop offset="0" stop-color="#fff6d8"/><stop offset=".5" stop-color="#ffd166"/><stop offset="1" stop-color="#ff8a5b" stop-opacity="0"/></radialGradient>
+            </defs>
+            <path class="f" d="M50 112 C18 104 18 70 36 50 C38 64 44 66 46 64 C40 44 50 24 62 10 C62 34 84 52 82 80 C81 100 68 112 50 112Z" fill="url(#fg1)" opacity=".9"/>
+            <path class="f f2" d="M50 112 C30 106 30 84 42 70 C44 80 48 82 50 80 C48 66 54 54 60 46 C62 62 72 74 70 90 C69 104 60 112 50 112Z" fill="url(#fg2)"/>
+            <path class="f f3" d="M50 112 C40 109 40 98 46 90 C48 96 50 96 51 94 C51 88 54 84 56 80 C58 90 62 96 60 104 C59 109 55 112 50 112Z" fill="#fffbe8" opacity=".85"/>
+            <rect x="22" y="108" width="56" height="7" rx="3.5" fill="#3a2a2e" transform="rotate(-8 50 112)"/>
+            <rect x="22" y="108" width="56" height="7" rx="3.5" fill="#2c2026" transform="rotate(8 50 112)"/>
+          </svg>
+          <div class="embers"><i style="--dx:-14px;animation-delay:0s"></i><i style="--dx:10px;animation-delay:.8s"></i><i style="--dx:-4px;animation-delay:1.6s"></i><i style="--dx:16px;animation-delay:2.3s"></i></div>
+        </div>
+        <svg class="lines" id="lines" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <defs>
+            <marker id="ah-e" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 1L9 5L0 9z" fill="#ff8a6b"/></marker>
+            <marker id="ah-s" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 1L9 5L0 9z" fill="#ffd166"/></marker>
+            <marker id="ah-g" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 1L9 5L0 9z" fill="#3ddc97"/></marker>
+          </defs>
+          <g id="lineG"></g>
+        </svg>
+        <div id="seats"></div>
+        <div class="dawn panel" id="dawn"></div>
+      </div>
+    </div>
+    <aside class="g-record" id="record"><div class="panel rec" style="height:100%">
+      <div class="trust">
+        <div class="trow2"><div class="tic"><svg class="i"><use href="#i-lock"/></svg></div><div><b>Makeo keeper · AWS Nitro</b><span id="pcrLine">attested executor</span></div><div class="okk">attested ✓</div></div>
+        <div class="trow2"><div class="tic"><svg class="i"><use href="#i-chip"/></svg></div><div><b>Inference · NEAR AI Cloud</b><span>Intel TDX + NVIDIA CC</span></div><div class="okk">attested ✓</div></div>
+      </div>
+      <div class="tabs" id="recTabs"><button data-t="ledger" class="on">Ledger</button><button data-t="moves">Moves</button></div>
+      <div class="recbody" id="recBody"></div>
+    </div></aside>
+    <div class="endov" id="endov"></div>
+  </section>
+
+  <!-- RECEIPT -->
+  <section id="receipt" class="screen"><div class="wrap" id="rwrap"></div></section>
+</main>
+
+<div class="pop" id="pop"></div>
+<div class="toast" id="toast"></div>
 <script src="./makeo-rooms.js"></script>
-<script type="module" src="./main.js"></script></body></html>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
