@@ -3,7 +3,7 @@
 All on NEAR testnet. Verified on chain by the coordinator unless marked.
 
 - Pot contract: `pot.makeo-near.testnet` (owner and operator `makeo-near.testnet`)
-- Contract code hash on chain: `F85dRpxHnoy47uXaf1vTyPMSYTBFWjR7w6j294pdLS4w` = sha256 `d1d3ea65436800636f9271dc671a36a3c1349a3876f3081688476561fcea78c0` (redeploy tx `GWtL6Zo7mB3cX8DUkGetC4kxsxGWA7L2QyhCMCPwnNph`)
+- Contract code hash on chain: `BnsWLsLcLgJ7qsbTGCejUioPbveUMYThQkbd3ZkZNsMx` = sha256 `a0551ce5d440a130f8c4e167808c24056da72aacb35a9d65b972afa0258057ef` (redeploy tx `GWtL6Zo7mB3cX8DUkGetC4kxsxGWA7L2QyhCMCPwnNph`)
 - Keeper registered: tx `4jbUSYHLAQDG8VrtAvBwYRDc5a3HSnMqMD2gLP5skxCK`
   - keeper key (AWS Nitro enclave): `0x03962d2cf414ed532bc8dca6f29818a69dad70d1d104e61305f8d2a1146fe075c2`
   - PCR0: `0e70ae798d787f8d88a156fe721bdbfb7b0bb9dc5ce97c394e5114499bd8b358105dbc83e40a9dba658ad8af0ed64078`

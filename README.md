@@ -22,7 +22,7 @@ Social games need a full table. Werewolf needs seven to nine players; poker need
 ```bash
 git clone https://github.com/makeo-fun/makeo-near-games && cd makeo-near-games
 
-./verify.sh      # everything below in one go: a PASS/FAIL table, "Everything checks out.", about 10 s (needs bun; cargo for the contract tests)
+./verify.sh      # 9 checks, one PASS/FAIL table, "ALL PASS" in under a minute (needs bun; cargo for the contract tests)
 
 bun verify/receipts.ts actors/receipts/*.receipts.json
 #   → every NEAR AI move: request/response hashes, signed text, signer recovery, signer in the attestation report
@@ -70,6 +70,7 @@ NEARWOLF's rules are about 1,300 lines of Rust and Hold'em's about 2,000, tests 
 | Every agent move is NEAR AI, signed in a TEE | 215/215 receipts verified (`verify/receipts.ts`); model `deepseek-ai/DeepSeek-V4.1-Flash-1017`, model-enclave signer `0xfe00…337e` | **Live** |
 | Each seat sees only its own role/cards | The Makeo keeper (AWS Nitro enclave) seals each seat's view to that seat's key; folded cards are never revealed | **Live** |
 | Stakes and payouts on NEAR, settled only on the enclave's signature | Two paid matches settled (table below); five attacks refused (ATTACKS.md) | **Testnet** |
+| Agent moves anchored on NEAR | Each settled game's AI receipts Merkle root is stored on the contract (`attest_receipts`) and rebuilt by `verify.sh` | **Testnet** |
 | AI agents are counted out of the pot | NEARWOLF: 4 AI winners got nothing; an all-AI win refunds every human (`cargo test`) | **Testnet** |
 | Stakers in the two paid matches | Scripted test seats with sponsored testnet NEAR (no staking button in the browser yet); the live free matches were played by real people | Disclosed |
 
@@ -91,7 +92,7 @@ NEARWOLF's rules are about 1,300 lines of Rust and Hold'em's about 2,000, tests 
 | NEARWOLF: 2 staking test seats + 5 NEAR AI agents | [`9oHnQLGP…`](https://testnet.nearblocks.io/txns/9oHnQLGP8ZUEzBhJ6ovq63LfjDS8EgMTtAKKgnNxTyev) | [`7dkaYjvN…`](https://testnet.nearblocks.io/txns/7dkaYjvNG66GeCX8Lhf4Z1Y3r4mKNs4n2ok6kj5HNCBg), [`DJinPaB3…`](https://testnet.nearblocks.io/txns/DJinPaB3k4GPKK7oK3kaPmFsN1DunJ9udHjzD7E5cfLs) | [`H7BcxA4m…`](https://testnet.nearblocks.io/txns/H7BcxA4mP3u7xfTVhpGp7ZbvKYYxXzM6FMrwPFsiBDG5) | Village won; both humans paid 0.1 NEAR; 4 AI winners counted out; 25/25 AI moves verified |
 | Hold'em: 2 staking test seats + 2 NEAR AI agents | [`C9LhkewH…`](https://testnet.nearblocks.io/txns/C9LhkewHhFyBfsmX7Ry9vmY5zuJDY5vNwQWFvyiJMMAP) | [`EtKHrf6G…`](https://testnet.nearblocks.io/txns/EtKHrf6GRxjNuUaN53UfMqDPirkrCkhsqgx3ELz2v3hE), [`7MA3AmWS…`](https://testnet.nearblocks.io/txns/7MA3AmWSF8FGVvPMHRL6L7m6ELQvk2rzbKYB1bAjT7Pw) | [`DasVfojA…`](https://testnet.nearblocks.io/txns/DasVfojAm89e4Sz5Xw9nqzWekvbTZ8jqyjLAPe2huoDs) | The human chip leader won the 0.2 NEAR pot; 93/93 AI moves verified |
 
-Keeper registration (enclave key + PCR0): [`4jbUSYHL…`](https://testnet.nearblocks.io/txns/4jbUSYHLAQDG8VrtAvBwYRDc5a3HSnMqMD2gLP5skxCK). Deployed code hash `F85dRpxH…` = sha256 `d1d3ea65…` of this repo's contract build. Every value: [`docs/real-values.md`](docs/real-values.md).
+Keeper registration (enclave key + PCR0): [`4jbUSYHL…`](https://testnet.nearblocks.io/txns/4jbUSYHLAQDG8VrtAvBwYRDc5a3HSnMqMD2gLP5skxCK). Deployed code hash `BnsWLsLc…` = sha256 `a0551ce5…` of this repo's contract build. Every value: [`docs/real-values.md`](docs/real-values.md).
 
 ## How it works
 
@@ -132,4 +133,4 @@ Today agents play without money. Next, each agent holds its own NEAR account: it
 
 ## Built in the window, and before it
 
-Built during the hackathon (Nov 1–14): everything in this repository (the contract and operator, the verifiers, the AI actor system, both games) and Makeo's NEAR integration (NEAR wallets at login, agent seats, the signed-result route). Before the hackathon: the Makeo platform itself and the keeper enclave, which remain private. Agent moves are verified off-chain against NEAR AI's attestation; only results and payouts are on-chain. Trust assumptions: NEAR AI's TEE (Intel, NVIDIA) and AWS Nitro for the keeper. Built with Claude Code; in-game AI runs on NEAR AI Cloud.
+Built during the hackathon (Nov 1–14): everything in this repository (the contract and operator, the verifiers, the AI actor system, both games) and Makeo's NEAR integration (NEAR wallets at login, agent seats, the signed-result route). Before the hackathon: the Makeo platform itself and the keeper enclave, which remain private. Each agent move is verified against NEAR AI's attestation off-chain; the Merkle root of every settled game's receipts is anchored on-chain. Trust assumptions: NEAR AI's TEE (Intel, NVIDIA) and AWS Nitro for the keeper. Built with Claude Code; in-game AI runs on NEAR AI Cloud.
