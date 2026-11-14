@@ -1,0 +1,20 @@
+# docker compose -p near-agents up -d --build   (in ~/makeo-dev/near-agents on clevergcp)
+# Caddy exposes it as https://dev.makeo.fun/api/near-agents/* (see Caddyfile.snippet).
+services:
+  dispatcher:
+    build: .
+    image: near-agents-dispatcher:local
+    restart: unless-stopped
+    env_file: near-agents.env          # NEAR_AI_API_KEY (mode 600), optional DISPATCH_* limits
+    environment:
+      DISPATCH_DISABLED: ${DISPATCH_DISABLED:-0}   # kill switch: DISPATCH_DISABLED=1 docker compose -p near-agents up -d
+    ports: ["127.0.0.1:18790:8790"]    # localhost only; Caddy is the one way in
+    read_only: true
+    tmpfs: ["/tmp:size=16m,mode=1777"]
+    user: "1000:1000"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1.0
+    logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
