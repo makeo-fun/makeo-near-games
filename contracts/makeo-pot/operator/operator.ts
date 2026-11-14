@@ -189,11 +189,25 @@ function serve() {
           const [g, record] = await Promise.all([view("get_game", { game }), view("get_record", { game })]);
           return json({ game: g, record });
         }
-        if (req.method === "POST" && url.pathname === "/enter") return json(await relayEnter((await req.json()) as EntryRequest));
+        if (req.method === "POST" && url.pathname === "/enter") {
+          const entry = (await req.json()) as EntryRequest;
+          try {
+            const done = await relayEnter(entry);
+            console.log(`${new Date().toISOString()} enter ${entry.game} ${entry.seat} -> ${entry.payout} tx ${done.tx}`);
+            return json(done);
+          } catch (e) {
+            console.log(`${new Date().toISOString()} enter refused ${entry.game} ${entry.seat}: ${e instanceof Error ? e.message : e}`);
+            throw e;
+          }
+        }
         if (!authorized(req)) return json({ error: "unauthorized" }, 401);
         const body = (await req.json()) as Record<string, unknown>;
         if (req.method === "POST" && url.pathname === "/open") return json(await openGame(body as never));
-        if (req.method === "POST" && url.pathname === "/settle") return json(await settle(typeof body.url === "string" ? await loadProof(body.url) : (body as never)));
+        if (req.method === "POST" && url.pathname === "/settle") {
+          const done = await settle(typeof body.url === "string" ? await loadProof(body.url) : (body as never));
+          console.log(`${new Date().toISOString()} settle tx ${done.tx} winners ${done.winners.join(",")}`);
+          return json(done);
+        }
         return json({ error: "not found" }, 404);
       } catch (e) {
         return json({ error: e instanceof Error ? e.message : String(e) }, 400);
