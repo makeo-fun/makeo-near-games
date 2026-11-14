@@ -41,6 +41,7 @@ const ai = Number(opt("ai", "3"));
 // and the operator relays it (NEAR_OPERATOR_URL, default http://127.0.0.1:8787). AI seats never enter.
 const humans = Number(opt("humans", opt("human") === "auto" ? "1" : "0"));
 const stakeNear = opt("stake");
+const prefer = opt("prefer");
 const operatorUrl = opt("operator") ?? process.env.NEAR_OPERATOR_URL ?? "http://127.0.0.1:8787";
 const seats = Number(opt("seats", String(ai + humans)));
 const given = opt("room");
@@ -89,7 +90,10 @@ for (let h = 0; h < humans; h++) {
       const key = JSON.stringify(view);
       if (!legal.length || key === last) return;
       last = key;
-      const move = legal[Math.floor(Math.random() * legal.length)];
+      // --prefer <text>: pick a legal move whose JSON contains it (e.g. "allin" for a short Hold'em match).
+      const preferred = prefer ? legal.filter((m) => JSON.stringify(m).includes(prefer)) : [];
+      const pool = preferred.length ? preferred : legal;
+      const move = pool[Math.floor(Math.random() * pool.length)];
       const ack = await me.play(move);
       console.log(`[${label}] ${JSON.stringify(move)} ${ack.accepted ? "accepted" : `refused: ${ack.message}`}`);
       if (!ack.accepted) last = "";
