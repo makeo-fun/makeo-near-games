@@ -1,0 +1,34 @@
+{
+  "network": "testnet",
+  "contract": "pot.makeo-near.testnet",
+  "games": [
+    {
+      "game": "89411bc3-10c6-42ae-b17d-06442dec8b8d:live:faa2f7de6968ba0132a95e19909d9b99befe26f194bfde88d8ba44798b78efff:free",
+      "title": "NEARWOLF, 2 test human seats + 5 NEAR AI agent seats",
+      "open_tx": "9oHnQLGP8ZUEzBhJ6ovq63LfjDS8EgMTtAKKgnNxTyev",
+      "enter_txs": ["7dkaYjvNG66GeCX8Lhf4Z1Y3r4mKNs4n2ok6kj5HNCBg", "DJinPaB3k4GPKK7oK3kaPmFsN1DunJ9udHjzD7E5cfLs"],
+      "settle_tx": "H7BcxA4mP3u7xfTVhpGp7ZbvKYYxXzM6FMrwPFsiBDG5",
+      "paid": [
+        { "seat": "0xda9a854aff13340de1a1bd4e419cf88de7ae867f", "payout": "10b631c03b6ab3001291d2fad30abf815e7f227fd8aa240fb82ec54ac3888fdf", "near": "0.1", "receipt": "13Kb7tAL1HjRY4UfTpVTfu9K8J6LdQXARaCXMvdrKtXR" },
+        { "seat": "0x9fe9df7c7c417386ccc505f89cf05e71ba6b4d65", "payout": "ae2313bcea57a8ed9f9b9f8d8b44dd1bf49bca998bb0770f684058400b17e340", "near": "0.1", "receipt": "9MzrfhgaLii6axmWFz8TRVpY5V2Vh6yBkATdBTHSw8SN" }
+      ],
+      "note": "6 rules winners; the 4 AI agent seats among them never entered and were counted out. Each paid winner also holds 1 badge.",
+      "ai_receipts": "89411bc3-10c6-42ae-b17d-06442dec8b8d_live_faa2f7de6968ba0132a95e19909d9b99befe26f194bfde88d8ba44798b78efff_free.receipts.json",
+      "run": "run-faa2f7de6968ba01.json"
+    },
+    {
+      "game": "795650a8-2999-4971-b388-469c19b9c362:live:09f847d247323028fcd88c79114071af76879b6573e9de07ac97753f8473f4b1:free",
+      "title": "Hold'em sit-and-go, 2 test human seats + 2 NEAR AI agent seats",
+      "open_tx": "C9LhkewHhFyBfsmX7Ry9vmY5zuJDY5vNwQWFvyiJMMAP",
+      "enter_txs": ["EtKHrf6GRxjNuUaN53UfMqDPirkrCkhsqgx3ELz2v3hE", "7MA3AmWSF8FGVvPMHRL6L7m6ELQvk2rzbKYB1bAjT7Pw"],
+      "settle_tx": "DasVfojAm89e4Sz5Xw9nqzWekvbTZ8jqyjLAPe2huoDs",
+      "paid": [
+        { "seat": "0x9035f27cda39fdebf20991cbc9f8bc6cf94be876", "payout": "b2fb6194af7331662dfa554343ce1554db0d89cee4fc0e1c20642d8d94b6d58a", "near": "0.2", "receipt": "7HFQQARJxt93uAWGaqqdcb9FupGHEUJis36RVkEFvq3c" }
+      ],
+      "note": "Sole chip leader paid the whole pot plus a badge; 0xcc76…c02c lost.",
+      "ai_receipts": "795650a8-2999-4971-b388-469c19b9c362_live_09f847d247323028fcd88c79114071af76879b6573e9de07ac97753f8473f4b1_free.receipts.json",
+      "run": "run-09f847d247323028.json"
+    }
+  ],
+  "verify": "bun verify/near.ts <game> --keeper-url … (settle tx on chain, state hash + step, registered keeper, Nitro attestation); AI moves: verify/nearai.ts"
+}
