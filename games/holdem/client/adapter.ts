@@ -6,7 +6,7 @@
 import type { SitGoView } from "../shared/holdem.js";
 import { NoirLog, type NoirEvent, type NoirExtras, type NoirPending, type NoirView, noirMove } from "../shared/noir.js";
 
-type Options = { names: (wallet: string) => string; extras: () => NoirExtras; opening: NoirEvent[]; onRefused?: (message: string) => void };
+type Options = { names: (wallet: string) => string; extras: () => NoirExtras; opening: NoirEvent[]; onRefused?: (message: string) => void; beforeEnd?: () => Promise<void> };
 
 export function createMakeoAdapter(room: MakeoRoom<{ game: SitGoView | null }>, options: Options) {
   const noir = new NoirLog(options.opening);
@@ -19,6 +19,7 @@ export function createMakeoAdapter(room: MakeoRoom<{ game: SitGoView | null }>, 
   const acted = new Set<string>();
   let game: SitGoView | null = null;
   let sending = false;
+  let ended = false;
 
   const me = () => room.me?.id?.toLowerCase() ?? null;
   const keyOf = (g: SitGoView, p: NoirPending) => `${g.hands}:${p.kind === "unseal" ? "unseal" : g.hand?.seq ?? 0}`;
@@ -38,6 +39,12 @@ export function createMakeoAdapter(room: MakeoRoom<{ game: SitGoView | null }>, 
   function push(view: unknown) {
     const g = (view as { game?: SitGoView | null } | null)?.game ?? null;
     if (!g || !Array.isArray(g.chips)) return;
+    // At the end, fetch the AI receipts first (who was AI, their reasoning), then show it.
+    if (g.finished && options.beforeEnd && !ended) {
+      ended = true;
+      void options.beforeEnd().catch(() => undefined).then(() => push(view));
+      return;
+    }
     game = g;
     noir.extras = options.extras();
     const nv = noir.update(g, me(), options.names);

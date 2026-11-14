@@ -21,6 +21,10 @@ const $ = (s: string) => document.querySelector(s) as HTMLElement;
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
 const short = (w: string) => (w.length > 12 ? `${w.slice(0, 6)}…${w.slice(-4)}` : w);
 let room: Room | null = null;
+/** NEAR AI agents for free matches: the Makeo dispatcher seats verified AI players into a room. */
+const AGENTS = "https://dev.makeo.fun/api/near-agents";
+const PROJECT = "795650a8-2999-4971-b388-469c19b9c362";
+const aiAsked = new Set<string>();
 let mountTable: () => void = () => undefined;
 let withOpening = true;
 let booted = false;
@@ -113,8 +117,11 @@ function drawLobby(lobby: MakeoLobby) {
   h += `<div class="seats">${lobby.seats.map((s) => (s.id ? `<span class="seat">${esc(s.id === room!.me?.id ? "You" : s.name ?? short(s.id))}${s.status && s.status !== "connected" ? ` · ${s.status}` : ""}</span>` : `<span class="seat empty">open seat</span>`)).join("")}</div>`;
   h += `<button class="fr-b ghost sm" id="copyLink">Copy invite link</button>`;
   if (!room.me) h += `<button class="fr-b" id="joinBtn"><b>${lobby.entry ? `Join · ${esc(lobby.entry.stake)} ${esc(lobby.entry.token)}` : "Join"}</b></button>`;
-  else if (room.me.host || lobby.canStart) h += `<button class="fr-b" id="startBtn" ${lobby.canStart ? "" : "disabled"}><b>Start with ${joined}</b>${joined < lobby.min ? `<small>Needs ${lobby.min} to start</small>` : ""}</button>`;
-  else h += `<div>Waiting for ${esc(host?.name ?? "the host")} to start · ${joined} joined</div>`;
+  const empty = lobby.seats.filter((s) => !s.id).length;
+  if (room.me && !lobby.entry && room.kind !== "practice" && empty > 0 && !aiAsked.has(room.id))
+    h += `<button class="fr-b ghost" id="aiBtn"><b>Fill ${Math.min(3, empty)} seat${Math.min(3, empty) > 1 ? "s" : ""} with NEAR AI</b><small>Verified agents · every decision signed in a TEE</small></button>`;
+  if (room.me && (room.me.host || lobby.canStart)) h += `<button class="fr-b" id="startBtn" ${lobby.canStart ? "" : "disabled"}><b>Start with ${joined}</b>${joined < lobby.min ? `<small>Needs ${lobby.min} to start</small>` : ""}</button>`;
+  else if (room.me) h += `<div>Waiting for ${esc(host?.name ?? "the host")} to start · ${joined} joined</div>`;
   $("#lobby").innerHTML = h;
   ($("#copyLink") as HTMLButtonElement).onclick = async () => {
     const link = room?.link ?? location.href;
@@ -127,6 +134,8 @@ function drawLobby(lobby: MakeoLobby) {
   };
   const join = document.querySelector("#joinBtn") as HTMLButtonElement | null;
   if (join) join.onclick = () => room?.pay().catch((e) => toast(e?.message ?? String(e)));
+  const aiBtn = document.querySelector("#aiBtn") as HTMLButtonElement | null;
+  if (aiBtn) aiBtn.onclick = () => void askAgents(Math.min(3, empty));
   const startBtn = document.querySelector("#startBtn") as HTMLButtonElement | null;
   if (startBtn)
     startBtn.onclick = async () => {
@@ -175,7 +184,7 @@ function start() {
   HD.SEATS = g.players.map((w) => ({ id: w.toLowerCase(), name: nameOf(w), title: "" }));
   const joined = g.players.length;
   const opening = !withOpening ? [] : [{ t: "lobby", joined, max: joined, stake: room.kind === "paid" ? room.lobby.entry?.stake : room.kind === "practice" ? "PRACTICE" : "FREE PLAY", line: room.kind === "practice" ? "You against the house's practice players." : "Humans and verified AI agents, one table. Every seat looks the same." }];
-  (window as any).HOLDEM_BOOT = { adapter: createMakeoAdapter(room, { names: nameOf, extras, opening, onRefused: toast }), seats: HD.SEATS };
+  (window as any).HOLDEM_BOOT = { adapter: createMakeoAdapter(room, { names: nameOf, extras, opening, onRefused: toast, beforeEnd: receiptsAtEnd }), seats: HD.SEATS };
   $("#front").hidden = true;
   void loadReceipts();
   try {
@@ -187,6 +196,40 @@ function start() {
 }
 
 /** AI receipts (actors/, published at game end): `?receipts=<https url>`. */
+/** Asks the dispatcher for `ai` NEAR AI seats in this free match (idempotent per room). */
+async function askAgents(ai: number) {
+  if (!room) return;
+  aiAsked.add(room.id);
+  drawLobby(room.lobby);
+  try {
+    const res = await fetch(`${AGENTS}/seat`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ project: PROJECT, room: room.id, ai }) });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body.ok) throw new Error(body.error || body.message || `the AI dispatcher answered ${res.status}`);
+    toast(`${(body.seats ?? []).map((s: any) => s.name).join(", ") || `${body.ai} agents`} joining · NEAR AI Cloud`);
+  } catch (e) {
+    aiAsked.delete(room.id);
+    toast(e instanceof Error ? e.message : String(e));
+    drawLobby(room.lobby);
+  }
+}
+
+/** At the end: the agents' published receipts (who was AI, their signatures, their reasoning). */
+async function receiptsAtEnd() {
+  if (receipts.length || !room || !aiAsked.has(room.id)) return loadReceipts();
+  for (let i = 0; i < 6 && !receipts.length; i++) {
+    try {
+      const res = await fetch(`${AGENTS}/receipts?room=${encodeURIComponent(room.id)}`, { cache: "no-store" });
+      if (res.ok) {
+        const body = await res.json();
+        receipts = Array.isArray(body) ? body : Array.isArray(body?.receipts) ? body.receipts : [];
+      }
+    } catch {
+      /* not yet */
+    }
+    if (!receipts.length) await new Promise((r) => setTimeout(r, 2500));
+  }
+}
+
 let receipts: any[] = [];
 async function loadReceipts() {
   const url = new URLSearchParams(location.search).get("receipts");
