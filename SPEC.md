@@ -52,14 +52,37 @@ platform-near decides the exact bytes **from what the keeper already signs** (it
 step) and documents them here under "Result format". The contract stores the keeper key(s) registered by the owner,
 with the PCR0 they came from (public, auditable). No valid result by the deadline → everyone can refund.
 
-### Result format
-TBD by platform-near by 19:30 UTC. Until then: `{game, winners: [seat], role_or_seed_commitment, moves_root}`.
+### Result format (fixed by platform-near; no keeper change)
+The keeper already signs, after every batch of a hidden game, its **step** (`runtime/keeper/src/hidden.ts`, `run`):
+```
+state_hash = sha256( '{"domain":"makeo:runtime:state:v1","value":' + STATE + '}' )
+step       = sha256( '{"domain":"makeo:hidden:step:v1","value":{"count":' + COUNT + ',"head":"' + HEAD + '","instance":' + json(INSTANCE) + ',"state":"' + state_hash + '"}}' )
+keeper_sig = secp256k1 sign(step, keeper key), prehash off, low-S, 64 bytes r||s (no recovery byte), hex 0x…
+```
+- `STATE` is the game's **full** final state (not the room's redacted copy) as canonical JSON: serde_json compact,
+  object keys sorted by bytes, integers only (`canonicalJson` in `runtime/feeds/src/fact.ts`). Hashes are `0x` + 64 lowercase hex.
+- `INSTANCE` is the keeper instance id = the contract's `game` id. `HEAD`/`COUNT` are the final checkpoint's
+  `input_head`/`event_count` (the room's last output, `journal.checkpoint`).
+- So `settle(game, count, head, state, keeper_sig)`: the contract rebuilds `state_hash` and `step` from those bytes,
+  `ecrecover`s the sig (tries v=0 and v=1) and accepts only a registered keeper key. Then it parses `state` and requires:
+  - `state.finished == true` (top level, set by the runtime when the game's `finished()` is true);
+  - `state.game.winners`: **an array of seat addresses, lowercase `0x` + 40 hex** (the EVM wallets the keeper/runtime
+    use as actors). **Games must put this field in their game state** (it is part of the state hash, so it is signed).
+    Empty array = draw (everyone is refunded).
+  - Optional `state.game.shares`: integers, same length as `winners`, the pot split by weight (default equal).
+- Payout: pot = sum of stakes entered; winners that did not enter get nothing (their weight is dropped); if no winner
+  entered, everyone is refunded. Rounding dust goes to the first paid winner. Each paid winner gets a NEP-245 badge.
+- Where the bytes come from: the room's last keeper reply holds `{step, signature}` (Makeo app keeps them for the
+  operator), and the full `STATE` is rebuilt by replaying the keeper's published history (`GET /hidden/<instance>/history`:
+  seed + opened moves, only after the game is finished) through the game's `rules.wasm`; the replay must reproduce
+  `state_hash`. The record stores `{step, state_hash, head, count, winners, keeper}` so anyone can replay and check.
+- Keep the full state small: NEAR charges per argument byte (~4.5 Ggas/KB), so `settle` fits ~50 KB of state.
 
 ## Contract interface (`contracts/makeo-pot`, near-sdk Rust) — draft, platform-near owns it
 - `register_keeper(pubkey_secp256k1, pcr0)` owner only
 - `open_game(game, rules_digest, stake_yocto, max_seats, deadline_ms)`
 - `enter(game, seat, payout, stake, expires_at_ms, sig)` payable (testnet NEAR), checks `MakeoNearEntry`
-- `settle(game, result, keeper_sig)` anyone may submit; pays winners' payout accounts; mints badges; stores record
+- `settle(game, count, head, state, keeper_sig)` anyone may submit (see Result format); pays winners' payout accounts; mints badges; stores record
 - `refund(game, seat)` after the deadline if unsettled
 - views: `get_game`, `get_record`; NEP-245 `mt_*` for badges
 
