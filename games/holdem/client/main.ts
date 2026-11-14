@@ -298,8 +298,8 @@ function noteHand(id: number, seats: number[], players: { wallet: string; stack:
     for (let i = 0; i < game.players.length; i++) {
       const d = game.last[i];
       const was = a.last[i];
-      if (d && JSON.stringify(d) !== JSON.stringify(was) && !/blind/.test(d.act)) log(`<b>${esc(nameAt(rec, i))}</b> ${actWords(d.act, d.to)}`);
-      else if (!d && game.folded[i] && !a.folded[i]) log(`<b>${esc(nameAt(rec, i))}</b> folds`);
+      if (d && JSON.stringify(d) !== JSON.stringify(was) && !/blind/.test(d.act)) log(`<b>${esc(nameAt(rec, i))}</b> ${you(nameAt(rec, i), actWords(d.act, d.to))}`);
+      else if (!d && game.folded[i] && !a.folded[i]) log(`<b>${esc(nameAt(rec, i))}</b> ${you(nameAt(rec, i), "folds")}`);
     }
     if (game.board.length > a.board.length) {
       const street = game.board.length === 3 ? "Flop" : game.board.length === 4 ? "Turn" : "River";
@@ -308,6 +308,14 @@ function noteHand(id: number, seats: number[], players: { wallet: string; stack:
   }
   rec.live = game;
   lastSeen = { hand: id, game };
+}
+
+/** "You calls" → "You call": second person for this player. */
+function you(name: string, phrase: string) {
+  if (name !== "You") return phrase;
+  const [verb, ...rest] = phrase.split(" ");
+  const base: Record<string, string> = { calls: "call", checks: "check", raises: "raise", bets: "bet", is: "are", folds: "fold", shows: "show", wins: "win" };
+  return [base[verb] ?? verb, ...rest].join(" ");
 }
 
 function actWords(act: string, to: number) {
@@ -340,10 +348,10 @@ function onHandEnd(hand: { hand: number; changes: Record<string, number>; void: 
   const mineDelta = myWallet() ? hand.changes[myWallet()!] ?? hand.changes[Object.keys(hand.changes).find((k) => k.toLowerCase() === myWallet()) ?? ""] : undefined;
   if (g.street === "Showdown" && g.showdown) {
     staged = { ended: end, changes: hand.changes, until: Date.now() + 7200, hand: hand.hand };
-    for (let i = 0; i < g.players.length; i++) if (g.showdown.shown[i]) log(`<span class="sd"><b>${esc(nameAt(r, i))}</b> shows ${g.hole[i]!.map(cardText).join(" ")} · ${esc(g.showdown.names[i])}</span>`);
+    for (let i = 0; i < g.players.length; i++) if (g.showdown.shown[i]) log(`<span class="sd"><b>${esc(nameAt(r, i))}</b> ${you(nameAt(r, i), "shows")} ${g.hole[i]!.map(cardText).join(" ")} · ${esc(g.showdown.names[i])}</span>`);
     for (const [k, pot] of g.showdown.pots.entries()) {
       const who = pot.winners.map((w) => nameAt(r, w)).join(" and ");
-      log(`<span class="sd"><b>${esc(who)}</b> ${pot.winners.length > 1 ? "split" : "wins"} the ${k === 0 ? "pot" : "side pot"} · ${pot.amount}</span>`);
+      log(`<span class="sd"><b>${esc(who)}</b> ${pot.winners.length > 1 ? "split" : you(who, "wins")} the ${k === 0 ? "pot" : "side pot"} · ${pot.amount}</span>`);
     }
   } else {
     const w = g.won ? g.won.findIndex((x, i) => x > 0 && !g.folded[i]) : -1;
@@ -394,6 +402,20 @@ function layout() {
 }
 addEventListener("resize", layout);
 
+/** Sizes the felt so the seats around it fit the stage. */
+function fitFelt() {
+  const stage = $("#stage").getBoundingClientRect();
+  const felt = $("#felt");
+  const tall = document.body.classList.contains("tall");
+  const small = innerWidth < 640;
+  const padX = small ? 110 : 290;
+  const padY = small ? 230 : 250;
+  const aspect = tall ? 0.62 : 2.05;
+  const w = Math.max(160, Math.min(stage.width - padX, (stage.height - padY) * aspect, tall ? 440 : 980));
+  felt.style.width = `${w}px`;
+  felt.style.aspectRatio = String(aspect);
+}
+
 /** Where physical seat `s` sits on screen: this player at the bottom, the rest clockwise. */
 function slotOf(s: number, mySeat: number | null, n: number) {
   const k = (s - (mySeat ?? 0) + n) % n;
@@ -416,6 +438,7 @@ function render() {
     drawBar();
     return;
   }
+  fitFelt();
   const view = room.view;
   const live = view?.hand && view.hand.game ? view.hand : null;
   const showing = staged && Date.now() < staged.until ? staged : null;
@@ -505,7 +528,7 @@ function render() {
       <div class="cards">${cards}</div>${plate(p.wallet, nm, kind, stack, turn, game.all_in[i] ? "ALL IN" : null)}${under}</div>`;
     // Chips in front of the seat, and the button.
     if (!showing && game.street_bet[i] > 0 && isBetting(game)) {
-      const b = polar(angle, 0.56, 0.5, 0);
+      const b = polar(angle, 0.66, 0.8, 0);
       html += `<div class="bet" style="left:${b.x}px;top:${b.y}px"><i></i>${game.street_bet[i]}</div>`;
     }
     if (i === game.button) {
@@ -515,18 +538,15 @@ function render() {
   }
   seatsEl.innerHTML = html;
 
-  // Banner for a showdown.
-  document.querySelector(".banner")?.remove();
+  // How a showdown ended, under the board.
+  let banner = "";
   if (showing && game?.showdown) {
     const r = records.get(showing.hand);
     const main = game.showdown.pots[0];
     const who = main.winners.map((w) => (r ? nameAt(r, w) : `Seat ${w + 1}`)).join(" & ");
     const what = game.showdown.names[main.winners[0]] ?? "";
     const myDelta = me ? Object.entries(showing.changes).find(([k]) => k.toLowerCase() === me)?.[1] : undefined;
-    const div = document.createElement("div");
-    div.className = "banner";
-    div.innerHTML = `<div class="w">${esc(who)} ${main.winners.length > 1 ? "split the pot" : who === "You" ? "win" : "wins"} · ${esc(what)}</div>${myDelta ? `<div class="m net ${myDelta > 0 ? "up" : "down"}">${myDelta > 0 ? "+" : ""}${myDelta} chips for you</div>` : ""}`;
-    $("#stage").appendChild(div);
+    banner = `<div class="banner"><div class="w">${esc(who)} ${main.winners.length > 1 ? "split the pot" : who === "You" ? "win" : "wins"} · ${esc(what)}</div>${myDelta ? `<div class="m net ${myDelta > 0 ? "up" : "down"}">${myDelta > 0 ? "+" : ""}${myDelta} chips for you</div>` : ""}</div>`;
   }
 
   // The note under the board.
@@ -535,7 +555,7 @@ function render() {
   else if (!game) note = Object.keys(view?.seats ?? {}).length < 2 ? "Waiting for another player to sit down" : "Shuffling the next hand…";
   else if (game.street === "Folded") note = "";
   else if (!showing && game.turn === null && isBetting(game) === false) note = "";
-  $("#note").innerHTML = note;
+  $("#note").innerHTML = banner || note;
   $("#note").querySelector<HTMLElement>("#copylink")?.addEventListener("click", () => {
     void navigator.clipboard?.writeText(location.href).then(() => toast("Invite link copied"));
   });
@@ -619,7 +639,7 @@ function drawDock(game: HandView | null, me: number | null) {
   if (lb) lb.onclick = () => void leaveTable();
   const rb = dock.querySelector<HTMLElement>("#rcptbtn");
   if (rb) rb.onclick = () => show("receipt");
-  document.documentElement.style.setProperty("--dockh", `${dock.offsetHeight || 150}px`);
+  if (!raiseOpen) document.documentElement.style.setProperty("--dockh", `${dock.offsetHeight || 150}px`);
 }
 
 function presets(game: HandView, o: NonNullable<HandView["options"]>): [string, number][] {

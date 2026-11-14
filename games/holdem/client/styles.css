@@ -186,10 +186,10 @@ body.wide .log{display:flex}
 .lines .sd{color:var(--sunny)}
 
 /* banner (a hand's end) */
-.banner{position:absolute;left:50%;top:14%;transform:translateX(-50%);z-index:12;padding:12px 20px;border-radius:18px;background:rgba(10,13,32,.92);border:1px solid rgba(255,209,102,.35);box-shadow:0 20px 60px -20px rgba(0,0,0,.8),0 0 40px rgba(255,209,102,.15);text-align:center;animation:pop .6s var(--spring) both;pointer-events:none;max-width:90%}
-.banner .w{font:700 16px var(--display);color:var(--sunny)}
+.banner{position:relative;z-index:12;padding:8px 16px;border-radius:18px;background:rgba(10,13,32,.92);border:1px solid rgba(255,209,102,.35);box-shadow:0 20px 60px -20px rgba(0,0,0,.8),0 0 40px rgba(255,209,102,.15);text-align:center;animation:pop .6s var(--spring) both;pointer-events:none;max-width:90%}
+.banner .w{font:700 14px var(--display);color:var(--sunny)}
 .banner .m{font:600 13px var(--body);margin-top:3px}
-@keyframes pop{from{transform:translateX(-50%) scale(.7);opacity:0}}
+@keyframes pop{from{transform:scale(.7);opacity:0}}
 
 /* toast and sheet */
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);z-index:50;padding:10px 16px;border-radius:14px;background:#f4f1e6;color:#161a33;font:600 13px var(--body);opacity:0;transition:all .45s var(--spring);pointer-events:none;max-width:90vw;text-align:center}

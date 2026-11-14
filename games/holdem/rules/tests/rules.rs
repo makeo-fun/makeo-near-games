@@ -596,3 +596,14 @@ fn random_hands_conserve_chips_and_always_end() {
     }
     assert!(showdowns > 300 && side_pots > 50, "{showdowns} showdowns, {side_pots} with side pots");
 }
+
+/// The browser's Receipt screen recomputes commitments as
+/// `sha256(JSON.stringify({domain, value: {card, salt}}))`: these vectors were computed that way.
+#[test]
+fn commitments_match_the_browser_recomputation() {
+    assert_eq!(commit(12, "00ff").unwrap(), "0x6a2dd7a4625bc9b6b04e467358865a23c153a9e029f73aa15f401af9b519658a");
+    assert_eq!(
+        commit(51, "0123456789abcdef0123456789abcdef").unwrap(),
+        "0xa12681f766c62e2f7b1978c6b6ec59e7640b7b26a3d8f3b95604cffadbafee7e"
+    );
+}
