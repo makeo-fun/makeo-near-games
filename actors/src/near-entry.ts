@@ -40,11 +40,18 @@ export async function enterPot(options: { operator: string; signer: SeatSigner; 
   const stake = yocto(options.stakeNear);
   const entry: Entry = { game: options.game, seat: options.signer.wallet, payout: options.payout, stake, expiresAtMs: Date.now() + (options.ttlMs ?? 30 * 60_000) };
   const sig = options.signer.walletSign(entryDigest(entry));
-  const response = await (options.fetch ?? fetch)(`${options.operator.replace(/\/$/, "")}/enter`, {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ game: entry.game, seat: entry.seat.toLowerCase(), payout: entry.payout, stake: stake.toString(), expiresAtMs: entry.expiresAtMs, sig }),
-  });
-  const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!response.ok || body.error) throw new Error(`operator /enter: ${String(body.error ?? response.status)}`);
-  return body;
+  const body = JSON.stringify({ game: entry.game, seat: entry.seat.toLowerCase(), payout: entry.payout, stake: stake.toString(), expiresAtMs: entry.expiresAtMs, sig });
+  // Retry only when the operator could not be reached (nothing was sent on chain); an answer is final.
+  let response: Response | null = null;
+  for (let attempt = 0; !response; attempt++) {
+    try {
+      response = await (options.fetch ?? fetch)(`${options.operator.replace(/\/$/, "")}/enter`, { method: "POST", headers: { "content-type": "application/json" }, body });
+    } catch (e) {
+      if (attempt >= 4) throw e;
+      await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
+    }
+  }
+  const answer = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!response.ok || answer.error) throw new Error(`operator /enter: ${String(answer.error ?? response.status)}`);
+  return answer;
 }
