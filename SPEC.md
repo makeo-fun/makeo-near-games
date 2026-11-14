@@ -79,7 +79,7 @@ keeper_sig = secp256k1 sign(step, keeper key), prehash off, low-S, 64 bytes r||s
   signature for the operator), STATE = canonical JSON of that output's `state`. Fallback for a game that keeps redacting:
   replay the keeper's published history (`GET /hidden/<instance>/history`, after the end) through `rules.wasm`.
   The record stores `{step, state_hash, head, count, winners, keeper}`; the state is in the `settle` call's arguments.
-- Keep the full state small: NEAR charges per argument byte (~4.5 Ggas/KB), so `settle` fits ~50 KB of state.
+- Size: measured on a NEAR sandbox, `settle` with a 27 KB state burns ~17 Tgas (limit 300), so states up to a few hundred KB fit.
 
 ## Contract interface (`contracts/makeo-pot`, near-sdk Rust) — draft, platform-near owns it
 - `register_keeper(pubkey_secp256k1, pcr0)` owner only
