@@ -352,3 +352,33 @@ fn badges_do_not_move() {
     ctx("alice.testnet", 1, 1_000);
     pot.mt_transfer();
 }
+
+fn series_state(outcome: &str) -> String {
+    format!(r#"{{"finished":true,"game":{{"entrants":[],"outcome":{outcome},"phase":"Over","rules":{{"night":3}}}}}}"#)
+}
+
+#[test]
+fn settle_pays_a_series_ranking_first_tier() {
+    let (mut pot, keeper) = setup();
+    let (a, b, c) = (key(1), key(2), key(3));
+    enter(&mut pot, &a, "alice.testnet");
+    enter(&mut pot, &b, "bob.testnet");
+    enter(&mut pot, &c, "carol.testnet");
+    let state = series_state(&format!(r#"{{"kind":"Ranking","tiers":[["{}","{}"],["{}"]]}}"#, seat_of(&a), seat_of(&b), seat_of(&c)));
+    let sig = sign_step(&keeper, GAME, HEAD, 9, &state);
+    ctx("anyone.testnet", 0, 3_000);
+    let r = pot.settle(GAME.into(), 9, HEAD.into(), state, sig);
+    assert_eq!(r.winners, vec![seat_of(&a), seat_of(&b)]);
+    assert_eq!(r.payouts.iter().map(|p| p.amount.0).collect::<Vec<_>>(), vec![3 * STAKE / 2, 3 * STAKE / 2]);
+}
+
+#[test]
+fn a_void_series_refunds() {
+    let (mut pot, keeper) = setup();
+    let a = key(1);
+    enter(&mut pot, &a, "alice.testnet");
+    let state = series_state(r#"{"kind":"Void","reason":"house"}"#);
+    let sig = sign_step(&keeper, GAME, HEAD, 9, &state);
+    ctx("anyone.testnet", 0, 3_000);
+    assert!(pot.settle(GAME.into(), 9, HEAD.into(), state, sig).refunded);
+}

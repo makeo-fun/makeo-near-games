@@ -92,3 +92,26 @@ test("deploy → open → relayed entries → keeper-signed settle → payouts, 
   const checked = await verify.verifyGame(process.env.NEAR_POT_CONTRACT!, game, { state: text });
   expect(checked).toMatchObject({ settled: true, step, state_hash: stateHash });
 }, 180_000);
+
+test("a Makeo series game: redacted rules put back from its public view, paid by its outcome", async () => {
+  const game = `series-e2e-${Date.now()}`;
+  await op.openGame({ game, stakeNear: "0.1", seats: 4, minutes: 30 });
+  const pay = bytesToHex(secp256k1.utils.randomSecretKey());
+  const a = op.seatKey(), b = op.seatKey();
+  const stake = ONE / 10n, exp = Date.now() + 10 * 60_000;
+  for (const k of [a, b]) await op.relayEnter({ game, seat: k.seat, payout: k === b ? pay : "operator.sandbox", stake: stake.toString(), expiresAtMs: exp, sig: k.signEntry(game, k === b ? pay : "operator.sandbox", stake, exp) });
+  const rules = { night: 3, roles: { [a.seat]: "wolf", [b.seat]: "seer" }, winners: [b.seat] };
+  const full = { count: 9, finished: true, game: { phase: "Over", entrants: [a.seat, b.seat], outcome: { kind: "Ranking", tiers: [[b.seat], [a.seat]] }, rules } };
+  const stateHash = keeperLib.stateHash(canonical.canonicalJson(full as never));
+  const head = `0x${"55".repeat(32)}`;
+  const step = keeperLib.stepDigest(game, head, 9, stateHash);
+  const signature = `0x${bytesToHex(secp256k1.sign(hexToBytes(step.slice(2)), keeperPriv, { prehash: false, lowS: true }))}`;
+  // The room's copy: the rules as their hash (makeo-series redact), the full rules state in the public view.
+  const roomState = { ...full, game: { ...full.game, rules: { hidden: canonical.hashValue("makeo:runtime:state:v1", rules as never) } } };
+  const proof = { instance: game, output: { journal: { checkpoint: { event_count: 9, input_head: head, state_hash: stateHash }, public_view: { game: { winners: [b.seat], state: rules } } }, state: roomState as never }, step, signature };
+  const settled = await op.settle(proof as never);
+  expect(settled.winners).toEqual([b.seat]);
+  expect(await op.view("mt_balance_of", { account_id: pay, token_id: `makeo:${game}:winner` })).toBe("1");
+  // A forged public view (another rules state) is refused before it costs gas.
+  await expect(op.checkProof({ ...proof, output: { ...proof.output, journal: { ...proof.output.journal, public_view: { game: { state: { ...rules, winners: [a.seat] } } } } } } as never)).rejects.toThrow("does not hash");
+}, 120_000);

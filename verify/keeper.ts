@@ -64,10 +64,29 @@ export function verifyStep(proof: StepProof, keeperKey: string) {
   return { state_hash, step };
 }
 
-/** What the contract reads from a settled state: `finished`, `game.winners`, `game.shares`. */
+type Outcome = { kind: "Ranking"; tiers: string[][] } | { kind: "Void"; reason?: string };
+
+/**
+ * What the contract reads from a settled state: `finished`, and the winners: `game.winners` (+ `game.shares`), or a
+ * Makeo series' `game.outcome` (Ranking pays its first tier, Void refunds everyone).
+ */
 export function resultOf(state: Json | string) {
-  const parsed = JSON.parse(stateText(state)) as { finished?: boolean; game?: { winners?: string[]; shares?: number[] } };
-  return { finished: parsed.finished === true, winners: (parsed.game?.winners ?? []).map((w) => w.toLowerCase()), shares: parsed.game?.shares ?? null };
+  const parsed = JSON.parse(stateText(state)) as { finished?: boolean; game?: { winners?: string[]; shares?: number[]; outcome?: Outcome | null } };
+  const game = parsed.game ?? {};
+  const winners = game.winners ?? (game.outcome?.kind === "Ranking" ? game.outcome.tiers[0] ?? [] : []);
+  return { finished: parsed.finished === true, winners: winners.map((w) => w.toLowerCase()), shares: game.shares ?? null };
+}
+
+/**
+ * A Makeo series keeps its rules' state redacted even once finished: `game.rules = {hidden: hash(rules)}`. Given the
+ * rules' state (a finished game may publish it, e.g. in its public view), puts it back, checked against that hash.
+ */
+export function unredactSeries(state: Json, rules: Json): Json {
+  const s = state as { game?: { rules?: { hidden?: string } } };
+  const hidden = s.game?.rules?.hidden;
+  if (typeof hidden !== "string") return state;
+  if (hashValue("makeo:runtime:state:v1", rules) !== hidden) throw new Error("the published rules state does not hash to the redacted one");
+  return { ...(state as object), game: { ...(s.game as object), rules } } as Json;
 }
 
 /** Fetches the keeper's attestation with a fresh nonce and checks it (AWS root, chain, PCR0, nonce, age). Returns its key. */

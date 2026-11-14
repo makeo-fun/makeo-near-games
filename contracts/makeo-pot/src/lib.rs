@@ -129,6 +129,25 @@ pub fn badge_token(game: &str) -> String {
     format!("makeo:{game}:winner")
 }
 
+/// Who won, from the signed state's `game`: its own `winners`, or a Makeo series' `outcome` (the runtime's result:
+/// `Ranking` pays its first tier, `Void` refunds everyone).
+fn winners_of(game: &Value) -> Vec<Value> {
+    if let Some(w) = game.get("winners").and_then(Value::as_array) {
+        return w.clone();
+    }
+    match game.get("outcome") {
+        Some(o) if o.get("kind").and_then(Value::as_str) == Some("Ranking") => o
+            .get("tiers")
+            .and_then(Value::as_array)
+            .and_then(|t| t.first())
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default(),
+        Some(o) if o.get("kind").and_then(Value::as_str) == Some("Void") => vec![],
+        _ => env::panic_str("the game state has no winners array and no outcome"),
+    }
+}
+
 fn now_ms() -> u64 {
     env::block_timestamp_ms()
 }
@@ -255,10 +274,7 @@ impl Pot {
         let parsed: Value = serde_json::from_str(&state).unwrap_or_else(|_| env::panic_str("state is not JSON"));
         require!(parsed.get("finished") == Some(&Value::Bool(true)), "the game has not finished");
         let inner = parsed.get("game").unwrap_or_else(|| env::panic_str("state has no game"));
-        let winners: Vec<String> = inner
-            .get("winners")
-            .and_then(Value::as_array)
-            .unwrap_or_else(|| env::panic_str("the game state has no winners array"))
+        let winners: Vec<String> = winners_of(inner)
             .iter()
             .map(|w| w.as_str().map(str::to_lowercase).unwrap_or_else(|| env::panic_str("a winner is a seat address")))
             .collect();

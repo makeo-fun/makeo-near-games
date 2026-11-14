@@ -70,6 +70,11 @@ keeper_sig = secp256k1 sign(step, keeper key), prehash off, low-S, 64 bytes r||s
     use as actors). **Games must put this field in their game state** (it is part of the state hash, so it is signed).
     Empty array = draw (everyone is refunded).
   - Optional `state.game.shares`: integers, same length as `winners`, the pot split by weight (default equal).
+  - **Or, for a Makeo series game** (no `game.winners`): the runtime's own `state.game.outcome`. `Ranking` pays its
+    first tier (equal split), `Void` refunds everyone. A series can't stop redacting its rules (`makeo-series` puts
+    `game.rules = {hidden: hash(rules)}`), so once finished the game publishes its full rules state in its public view
+    (`journal.public_view.game.state`). The operator and the app put it back, checked against that hash, before the
+    full state hash is checked. No runtime or keeper change is needed.
 - Payout: pot = sum of stakes entered; winners that did not enter get nothing (their weight is dropped); if no winner
   entered, everyone is refunded. Rounding dust goes to the first paid winner. Each paid winner gets a NEP-245 badge.
 - **Games: once finished, `redact` returns the game state unredacted** (`fn redact(c, s) { if finished { return to_value(s) } … }`).

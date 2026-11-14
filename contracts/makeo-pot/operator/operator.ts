@@ -19,7 +19,7 @@ import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { canonicalJson, type Json } from "../../../verify/canonical";
-import { recoverKeys, resultOf, stateHash, stepDigest } from "../../../verify/keeper";
+import { recoverKeys, resultOf, stateHash, stepDigest, unredactSeries } from "../../../verify/keeper";
 import { entryDigest, RPC_URL } from "../../../verify/near";
 
 const env = (name: string) => {
@@ -112,7 +112,7 @@ export async function relayEnter(e: EntryRequest) {
 /** What the Makeo room keeps of a hidden game's last batch: the keeper's reply. */
 export type RoomProof = {
   instance: string;
-  output: { journal: { checkpoint: { event_count: number; input_head: string; state_hash: string } }; state: Json };
+  output: { journal: { checkpoint: { event_count: number; input_head: string; state_hash: string }; public_view?: { game?: { state?: Json } } }; state: Json };
   step: string;
   signature: string;
 };
@@ -120,7 +120,11 @@ export type RoomProof = {
 /** Checks a room's final proof against the contract's rules and the registered keepers, before spending gas. */
 export async function checkProof(p: RoomProof) {
   const { checkpoint } = p.output.journal;
-  const state = canonicalJson(p.output.state);
+  // A Makeo series keeps its rules' state redacted; a finished game publishes it in its public view
+  // (`public_view.game.state`), checked here against the redacted hash.
+  const published = p.output.journal.public_view?.game?.state;
+  const full = published !== undefined ? unredactSeries(p.output.state, published) : p.output.state;
+  const state = canonicalJson(full);
   const sh = stateHash(state);
   if (sh !== checkpoint.state_hash) {
     throw new Error(`the room's state hashes to ${sh}, not the signed ${checkpoint.state_hash}: the game still redacts its finished state (SPEC.md "Result format")`);

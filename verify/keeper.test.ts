@@ -36,3 +36,14 @@ test("a step signed the way the keeper signs it verifies, and recovers the keepe
 test("a non-canonical state is refused (the keeper hashed canonical bytes)", () => {
   expect(() => stateHash('{"finished":true, "game":{}}')).toThrow(/canonical/);
 });
+
+test("a series' outcome names the winners, and its redacted rules state can be put back", async () => {
+  const { unredactSeries } = await import("./keeper");
+  const rules = { night: 3, roles: { "0xaa": "wolf" } };
+  const { hashValue } = await import("./canonical");
+  const redacted = { finished: true, game: { outcome: { kind: "Ranking", tiers: [["0xAA"], ["0xbb"]] }, rules: { hidden: hashValue("makeo:runtime:state:v1", rules) } } };
+  expect(resultOf(redacted as never).winners).toEqual(["0xaa"]);
+  expect((unredactSeries(redacted as never, rules) as { game: { rules: unknown } }).game.rules).toEqual(rules);
+  expect(() => unredactSeries(redacted as never, { night: 4 })).toThrow("does not hash");
+  expect(resultOf({ finished: true, game: { outcome: { kind: "Void", reason: "x" } } } as never).winners).toEqual([]);
+});
