@@ -72,10 +72,13 @@ keeper_sig = secp256k1 sign(step, keeper key), prehash off, low-S, 64 bytes r||s
   - Optional `state.game.shares`: integers, same length as `winners`, the pot split by weight (default equal).
 - Payout: pot = sum of stakes entered; winners that did not enter get nothing (their weight is dropped); if no winner
   entered, everyone is refunded. Rounding dust goes to the first paid winner. Each paid winner gets a NEP-245 badge.
-- Where the bytes come from: the room's last keeper reply holds `{step, signature}` (Makeo app keeps them for the
-  operator), and the full `STATE` is rebuilt by replaying the keeper's published history (`GET /hidden/<instance>/history`:
-  seed + opened moves, only after the game is finished) through the game's `rules.wasm`; the replay must reproduce
-  `state_hash`. The record stores `{step, state_hash, head, count, winners, keeper}` so anyone can replay and check.
+- **Games: once finished, `redact` returns the game state unredacted** (`fn redact(c, s) { if finished { return to_value(s) } … }`).
+  The seed is public at the end anyway. Then the room's last output *is* the full state the keeper hashed, and
+  `state_hash(room.state) == journal.checkpoint.state_hash`; the operator checks that before it settles.
+- Where the bytes come from: the room's last keeper reply `{output, step, signature}` (the Makeo app keeps step and
+  signature for the operator), STATE = canonical JSON of that output's `state`. Fallback for a game that keeps redacting:
+  replay the keeper's published history (`GET /hidden/<instance>/history`, after the end) through `rules.wasm`.
+  The record stores `{step, state_hash, head, count, winners, keeper}`; the state is in the `settle` call's arguments.
 - Keep the full state small: NEAR charges per argument byte (~4.5 Ggas/KB), so `settle` fits ~50 KB of state.
 
 ## Contract interface (`contracts/makeo-pot`, near-sdk Rust) — draft, platform-near owns it
