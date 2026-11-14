@@ -52,3 +52,12 @@ played a live free match with the NEAR AI seat Vega and the platform's test seat
 | glass-live-next-hand.jpg | After winning the all-in (205 chips), probe out, Vega on 91 |
 
 human-ai-noir-receipts.json: receipts from the live noir game with a human in Chrome and NEAR AI seats Vega and Rook (92 AI decisions: 90 verified, 2 scripted fallbacks).
+
+## Glassino, final pass, live (published build 16)
+
+| File | What |
+|---|---|
+| glassino-bet-dock.jpg | Practice: the action dock with nothing to call reads "BET 2" |
+| glassino-live-deal.jpg | Live with NEAR AI Vega and probe: your A♥ 5♦, the flop materialising from the vault |
+| glassino-live-showdown.jpg | Live showdown, full board |
+| glassino-live-vega-wins.jpg | "THREE FOURS · Vega wins 12": Vega's 4♣ 4♠ with the 4♦ on board |
