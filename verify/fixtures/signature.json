@@ -1,0 +1,112 @@
+{
+  "model": "Qwen/Qwen3.6-35B-A3B-FP8",
+  "record": {
+    "text": "Qwen/Qwen3.6-35B-A3B-FP8:da21443911268e4aca21acb9613bacc6314b3e9002c148c85b3f4838989beefa:5ecfae11c8794f4a764b45a4b4b290d9ea3438ee34c5f90fee4dc2ecfedcb27d",
+    "signature": "0x67e5c6246d83099b68528ebecb9d7ecb87dda61e1fe80571bef634ba6d94df5e76bb44c552df9fbe080524b58c6653a814713afd7176a92a4634cc24347567801c",
+    "signing_address": "0xfdbd7952498b333206f360d71d97a1e0961e8ddf",
+    "signing_algo": "ecdsa",
+    "signature_kind": "provider_tee"
+  },
+  "request_body": "{\"model\":\"Qwen/Qwen3.6-35B-A3B-FP8\",\"messages\":[{\"role\":\"system\",\"content\":\"Answer with one JSON object: {\\\"move\\\": <number 1-3>, \\\"reasoning\\\": \\\"<short>\\\"}\"},{\"role\":\"user\",\"content\":\"Pick a number.\"}],\"response_format\":{\"type\":\"json_object\"},\"temperature\":0.7,\"max_tokens\":600,\"stream\":false}",
+  "response_body": "{\"id\":\"d7aebbb9625f44c3bc9ad5c2ae322c63\",\"object\":\"chat.completion\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"move\\\": 2, \\\"reasoning\\\": \\\"Random selection within the specified range.\\\"}\",\"reasoning_content\":\"Here's a thinking process:\\n\\n1.  **Analyze User Input:** The user says \\\"Pick a number.\\\"\\n2.  **Identify Constraints:** The system prompt specifies: \\\"Answer with one JSON object: {\\\"move\\\": <number 1-3>, \\\"reasoning\\\": \\\"<short>\\\"}\\\"\\n3.  **Determine Action:** I need to pick a number between 1 and 3, and provide a short reasoning, formatted strictly as JSON.\\n4.  **Select Number:** I'll pick 2.\\n5.  **Draft Reasoning:** \\\"Random selection within the specified range.\\\"\\n6.  **Format Output:** `{\\\"move\\\": 2, \\\"reasoning\\\": \\\"Random selection within the specified range.\\\"}`\\n7.  **Verify Constraints:** Matches exactly the required JSON structure. Contains only the JSON object. Move is between 1-3. Reasoning is short. All good.✅\\n\"},\"finish_reason\":\"stop\",\"logprobs\":null,\"matched_stop\":248046}],\"model\":\"Qwen/Qwen3.6-35B-A3B-FP8\",\"created\":1794683283,\"usage\":{\"prompt_tokens\":43,\"total_tokens\":259,\"completion_tokens\":216,\"prompt_tokens_details\":{\"cached_tokens\":0},\"reasoning_tokens\":196,\"completion_tokens_details\":{\"reasoning_tokens\":196}}}",
+  "attestation": {
+    "nonce": "ecf6544ee946f05745de33d8bd705e6325a523694be3d32b22ebd6a2adb3ef04",
+    "at_ms": 1794683283266,
+    "gateway": {
+      "kind": "gateway",
+      "address": "0xb98a789cdc4817275f5155593ba73ef2a957e779",
+      "algo": "ecdsa",
+      "checks": [
+        {
+          "id": "A2",
+          "label": "Intel TDX quote verified",
+          "ok": true,
+          "detail": "TCB UpToDate"
+        },
+        {
+          "id": "A3",
+          "label": "not a debug enclave",
+          "ok": true
+        },
+        {
+          "id": "A4",
+          "label": "quote binds the signing address and our nonce",
+          "ok": true,
+          "detail": "signer 0xb98a789cdc4817275f5155593ba73ef2a957e779"
+        },
+        {
+          "id": "A5",
+          "label": "echoed nonce is ours",
+          "ok": true
+        },
+        {
+          "id": "A6",
+          "label": "quote measures this app config",
+          "ok": true,
+          "detail": "compose sha256 2643bc7ae47ecf4cf84509a647d2c2cc3bcacad95a87b8a73d543e6c48ad3b22"
+        },
+        {
+          "id": "A7",
+          "label": "event log replays to RTMR3",
+          "ok": true
+        }
+      ],
+      "ok": true
+    },
+    "models": [
+      {
+        "kind": "model",
+        "address": "0xfdbd7952498b333206f360d71d97a1e0961e8ddf",
+        "algo": "ecdsa",
+        "model": "Qwen/Qwen3.6-35B-A3B-FP8",
+        "checks": [
+          {
+            "id": "A2",
+            "label": "Intel TDX quote verified",
+            "ok": true,
+            "detail": "TCB UpToDate"
+          },
+          {
+            "id": "A3",
+            "label": "not a debug enclave",
+            "ok": true
+          },
+          {
+            "id": "A4",
+            "label": "quote binds the signing address and our nonce",
+            "ok": true,
+            "detail": "signer 0xfdbd7952498b333206f360d71d97a1e0961e8ddf"
+          },
+          {
+            "id": "A5",
+            "label": "echoed nonce is ours",
+            "ok": true
+          },
+          {
+            "id": "A6",
+            "label": "quote measures this app config",
+            "ok": true,
+            "detail": "compose sha256 e8416a02d6f7ce47baaa52e3925b934fd30834b04fc9086b363db9b1d12c729d"
+          },
+          {
+            "id": "A7",
+            "label": "event log replays to RTMR3",
+            "ok": true
+          },
+          {
+            "id": "A8a",
+            "label": "GPU evidence carries our nonce",
+            "ok": true
+          },
+          {
+            "id": "A8b",
+            "label": "NVIDIA NRAS: GPUs genuine, confidential mode",
+            "ok": true
+          }
+        ],
+        "ok": true
+      }
+    ],
+    "ok": true
+  }
+}
