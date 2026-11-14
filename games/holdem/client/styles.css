@@ -73,7 +73,7 @@ body[data-screen=title] #title,body[data-screen=table] #table,body[data-screen=r
 .hero h1 span{color:var(--moonlight);opacity:.7}
 .lede{color:var(--muted);max-width:560px;font-size:15px}
 .fan{position:relative;height:120px;width:220px;margin:6px 0 4px}
-.fan .pc{position:absolute;left:50%;top:6px;transform:translateX(-50%) rotate(var(--r));transform-origin:50% 120%;animation:fanin .9s var(--spring) both}
+.fan .pc{position:absolute;left:calc(50% + var(--x,0px));top:6px;transform:translateX(-50%) rotate(var(--r));transform-origin:50% 120%;animation:fanin .9s var(--spring) both}
 .fan .pc:nth-child(2){animation-delay:.08s}.fan .pc:nth-child(3){animation-delay:.16s}
 @keyframes fanin{from{transform:translateX(-50%) rotate(0) translateY(20px);opacity:0}}
 .pc{width:70px;height:98px;border-radius:12px;background:linear-gradient(160deg,#fbf8ef,#e9e3cf);color:#141734;font:800 26px/1 var(--display);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;box-shadow:0 18px 40px -12px rgba(0,0,0,.8)}
