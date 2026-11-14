@@ -1,0 +1,99 @@
+{
+  "game": "795650a8-2999-4971-b388-469c19b9c362:live:d382e6d7fec4d6d16d87f8d4326328dca923b18edaf9e1d9688ad1eb27905e30",
+  "room": "d382e6d7fec4d6d16d87f8d4326328dca923b18edaf9e1d9688ad1eb27905e30",
+  "outcome": "finished",
+  "agentSeats": [
+    "0x7491aacafd1c02d9f7151bf806a1951e6556307c",
+    "0xeb2ef809d989b68b5f1bfd6582c6ac2f8dc0006e"
+  ],
+  "testHumanSeats": [
+    {
+      "label": "TEST HUMAN SEAT 1 (scripted)",
+      "seat": "0x5bf770dffc5e5180bd150a9ac36989183b2cbe17",
+      "payout": "dde90b58c5bf9bc11ee7981e16742304be0f4005768ce2a313030f2b3c9788f2",
+      "entered": {
+        "error": "Unable to connect. Is the computer able to access the url?"
+      }
+    },
+    {
+      "label": "TEST HUMAN SEAT 2 (scripted)",
+      "seat": "0xc95e8da5395ed5a209cf9cc30ea1ed4c779a85ac",
+      "payout": "3cd11554ad785af05d0c1aef1488c960f0eb7e57698dbce421cedb1d48a5cef0",
+      "entered": {
+        "tx": "268cY8jo8Mx7nNrGCyXSbiFYJr5ga2G2mo7i4qaj5wTp",
+        "value": null
+      }
+    }
+  ],
+  "receipts": [
+    {
+      "game": "holdem",
+      "seat": "0x7491aacafd1c02d9f7151bf806a1951e6556307c",
+      "round": 1,
+      "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+      "chat_id": "chatcmpl-960844f4-4a2a-4cea-a8c0-1e4ebf1fe6d1",
+      "request_sha256": "d7d531659ad485cfc6ff7ce70fc721b0cf264f6062d34eddbbcdb1fba8396f30",
+      "response_sha256": "8fe7e6983e4bbc4d5f8cd8437b46e026a9d7446eedb841e4e5e86bef8b4deb8d",
+      "signature": "0x2ded5cd01f530411cdefc528e189cccfb3620e59b887ba631d84c96cf89b23464c0f18543d7dff3f6020e4182959b2d30d5d76f9a272d0e80cfce4b03e3abcbb1b",
+      "signing_address": "0xfe0071895500a9755c18044948ab4f4e1a7f337e",
+      "verified": true,
+      "move": {
+        "move": "call"
+      },
+      "reasoning": "Suited connectors with position, cheap price. I'm a caller, not a folder, and not a raiser with this junk.",
+      "signer": "model",
+      "fallback": null,
+      "say": "Two chips to see a flop with hearts? That's my kind of bargain.",
+      "signed_text": "deepseek-ai/DeepSeek-V4.1-Flash-1017:d7d531659ad485cfc6ff7ce70fc721b0cf264f6062d34eddbbcdb1fba8396f30:8fe7e6983e4bbc4d5f8cd8437b46e026a9d7446eedb841e4e5e86bef8b4deb8d",
+      "at_ms": 1794684678457,
+      "inference_ms": 4887,
+      "verify_ms": 286
+    },
+    {
+      "game": "holdem",
+      "seat": "0xeb2ef809d989b68b5f1bfd6582c6ac2f8dc0006e",
+      "round": 1,
+      "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+      "chat_id": "chatcmpl-f109f569-a1bd-4d42-8cea-6f7c15066e8e",
+      "request_sha256": "53c4537ae9038f597e7469461efc160750348facbaa72aa3b9ae8b5723a9caef",
+      "response_sha256": "016e350b74b958c393c95a12c0f513c8f48f713d2621a72c45b1486697fdc669",
+      "signature": "0x758ef070a8fd602bfcffe4d08ec2ec83e4737213532649b5ba7a38f2e270f544593aa8688d60d841e50d688fa29f5f7bc7b6c67615008edd1ccd96cbed0046261c",
+      "signing_address": "0xfe0071895500a9755c18044948ab4f4e1a7f337e",
+      "verified": true,
+      "move": {
+        "move": "call"
+      },
+      "reasoning": "Two players are all-in for 100; with TT I'm flipping against their likely ranges (overcards/AK/AQ) and getting 2:1 on the call with 98 behind. Pot odds justify calling, but no raise is available and I'd rather not fold a strong pair.",
+      "signer": "model",
+      "fallback": null,
+      "say": null,
+      "signed_text": "deepseek-ai/DeepSeek-V4.1-Flash-1017:53c4537ae9038f597e7469461efc160750348facbaa72aa3b9ae8b5723a9caef:016e350b74b958c393c95a12c0f513c8f48f713d2621a72c45b1486697fdc669",
+      "at_ms": 1794684684506,
+      "inference_ms": 7009,
+      "verify_ms": 264
+    },
+    {
+      "game": "holdem",
+      "seat": "0x7491aacafd1c02d9f7151bf806a1951e6556307c",
+      "round": 1,
+      "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+      "chat_id": "chatcmpl-edd4bcb8-40ff-4c7c-9cc9-d081a560aaea",
+      "request_sha256": "01644f6344b4de8eccc466d843e86d2953195f9806dd5560cee3881b7745c66e",
+      "response_sha256": "15b98ccb2696c6da7677e50ac1fb93da37d20fc059234d1498669a1f6b67cd0c",
+      "signature": "0x719451317d9e95347e9bee6451397d3ea3d745050c45a8901a1fae32bbc6ec1a68fe384e7ed8d10c5755baa753909d6849ea7973ba124114527ebcbe92e3023c1c",
+      "signing_address": "0xfe0071895500a9755c18044948ab4f4e1a7f337e",
+      "verified": true,
+      "move": {
+        "move": "call"
+      },
+      "reasoning": "Three all-ins already, pot's laying me better than 3-to-1 and I'm closing the action for 98. 4-9 suited is a dog but at this price with four cards to come, I'll pay to see it.",
+      "signer": "model",
+      "fallback": null,
+      "say": "Pot's too fat to walk away from. Ninety-eight to see five cards — I've lost more on worse.",
+      "signed_text": "deepseek-ai/DeepSeek-V4.1-Flash-1017:01644f6344b4de8eccc466d843e86d2953195f9806dd5560cee3881b7745c66e:15b98ccb2696c6da7677e50ac1fb93da37d20fc059234d1498669a1f6b67cd0c",
+      "at_ms": 1794684692110,
+      "inference_ms": 3214,
+      "verify_ms": 261
+    }
+  ]
+}
