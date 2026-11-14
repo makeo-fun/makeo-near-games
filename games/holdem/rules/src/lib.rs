@@ -58,6 +58,19 @@ pub struct Did {
     pub to: u64,
 }
 
+/// One action of the hand, in order: public, so every seat (and an AI seat's prompt) can replay
+/// the betting street by street.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Logged {
+    /// The hand player who acted.
+    pub p: usize,
+    pub street: Street,
+    pub act: String,
+    /// Their bet on this street after it.
+    pub to: u64,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Pot {
@@ -114,6 +127,8 @@ pub struct Hand {
     pub current_bet: u64,
     pub min_raise: u64,
     pub last: Vec<Option<Did>>,
+    /// Every action of the hand in order, blinds included.
+    pub actions: Vec<Logged>,
     pub turn: Option<usize>,
     pub deadline_ms: u64,
     /// +1 for every change, so the page knows when its move landed.
@@ -354,6 +369,7 @@ impl TableRules for Holdem {
             current_bet: config.big_blind,
             min_raise: config.big_blind,
             last: vec![None; n],
+            actions: Vec::new(),
             turn: None,
             deadline_ms: 0,
             seq: 0,
@@ -363,8 +379,10 @@ impl TableRules for Holdem {
         };
         hand.put(sb, config.small_blind);
         hand.last[sb] = Some(Did { act: "small blind".into(), to: hand.street_bet[sb] });
+        hand.actions.push(Logged { p: sb, street: Street::Preflop, act: "small blind".into(), to: hand.street_bet[sb] });
         hand.put(bb, config.big_blind);
         hand.last[bb] = Some(Did { act: "big blind".into(), to: hand.street_bet[bb] });
+        hand.actions.push(Logged { p: bb, street: Street::Preflop, act: "big blind".into(), to: hand.street_bet[bb] });
         hand.to_act = (0..n).map(|i| hand.can_act(i)).collect();
         hand.progress(bb, config, ctx)?;
         Ok(hand)
@@ -432,6 +450,7 @@ impl TableRules for Holdem {
         next.to_act[p] = false;
         next.raise_open[p] = false;
         next.last[p] = Some(Did { act: act.into(), to: next.street_bet[p] });
+        next.actions.push(Logged { p, street: hand.street, act: act.into(), to: next.street_bet[p] });
         next.seq += 1;
         next.progress(p, config, ctx)?;
         Ok(next)
@@ -503,6 +522,7 @@ impl TableRules for Holdem {
             "folded": hand.folded,
             "all_in": (0..n).map(|i| !hand.folded[i] && hand.left(i) == 0).collect::<Vec<_>>(),
             "last": hand.last,
+            "actions": hand.actions,
             "pot": hand.committed.iter().sum::<u64>(),
             "current_bet": hand.current_bet,
             "min_raise": hand.min_raise,
@@ -550,4 +570,4 @@ impl makeo_conformance::table::TableFuzz for Holdem {
 }
 
 mod sitgo;
-pub use sitgo::{Game, SitGo, SitGoConfig, FOLD_PAUSE_MS};
+pub use sitgo::{Game, HandSummary, SitGo, SitGoConfig, FOLD_PAUSE_MS, HISTORY};

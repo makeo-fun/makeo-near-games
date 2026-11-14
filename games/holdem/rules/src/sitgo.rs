@@ -32,6 +32,24 @@ pub struct SitGoConfig {
     pub turn_ms: u64,
 }
 
+/// What everyone saw of a finished hand: the board, the hands shown down, each seat's chip change.
+/// Folded and unshown cards are never in it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HandSummary {
+    pub hand: u64,
+    pub board: Vec<crate::Card>,
+    /// (seat, the two cards, the hand's name) for each hand shown down.
+    pub shown: Vec<(usize, [crate::Card; 2], String)>,
+    /// Chip change per seat (0 for seats not in the hand).
+    pub deltas: Vec<i64>,
+    /// Seats that took chips from the pot.
+    pub winners: Vec<usize>,
+}
+
+/// How many finished hands the state remembers.
+pub const HISTORY: usize = 8;
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SitGo {
@@ -51,6 +69,8 @@ pub struct SitGo {
     pub next_deal_ms: u64,
     /// The hand number each seat lost its last chip in.
     pub busted: Vec<Option<u64>>,
+    /// The last few finished hands, oldest first.
+    pub history: Vec<HandSummary>,
     pub finished: bool,
     /// Once finished: who won (lowercase wallets) and their final chips.
     pub winners: Vec<String>,
@@ -109,6 +129,26 @@ impl SitGo {
         let Some(hand) = &self.hand else { return Ok(()) };
         let Some(result) = Holdem::result(&config.hand_config(self.hands), hand) else { return Ok(()) };
         let pause = if hand.street == Street::Showdown { SHOWDOWN_MS } else { FOLD_PAUSE_MS };
+        let mut deltas = vec![0i64; self.players.len()];
+        let mut shown = Vec::new();
+        for (i, d) in result.iter().enumerate() {
+            deltas[self.seats[i]] = *d;
+            if hand.showdown.as_ref().map(|s| s.shown[i]).unwrap_or(false) {
+                let name = hand.showdown.as_ref().and_then(|s| s.names[i].clone()).unwrap_or_default();
+                shown.push((self.seats[i], hand.hole[i], name));
+            }
+        }
+        let summary = HandSummary {
+            hand: self.hands,
+            board: hand.board[..hand.dealt].to_vec(),
+            shown,
+            winners: (0..result.len()).filter(|i| result[*i] > 0).map(|i| self.seats[i]).collect(),
+            deltas,
+        };
+        self.history.push(summary);
+        if self.history.len() > HISTORY {
+            self.history.remove(0);
+        }
         for (i, delta) in result.iter().enumerate() {
             let s = self.seats[i];
             let chips = self.chips[s] as i64 + delta;
@@ -174,6 +214,7 @@ impl Rules for Game {
             seats: vec![],
             next_deal_ms: 0,
             busted: vec![None; n],
+            history: vec![],
             finished: false,
             winners: vec![],
             shares: vec![],
@@ -245,6 +286,7 @@ impl Rules for Game {
             "hand": hand,
             "next_deal_ms": state.next_deal_ms,
             "busted": state.busted,
+            "history": state.history,
             "blinds": [small_blind, big_blind],
             "next_blinds": [next_small, next_big],
             "hands_per_level": config.hands_per_level,

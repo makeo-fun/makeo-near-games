@@ -217,3 +217,50 @@ fn a_paid_sit_and_go_settles_and_publishes_its_final_state() {
     let winner = player_of(&state.winners[0]);
     assert_eq!(h.paid_to(&wallet(winner)), 3 * STAKE);
 }
+
+#[test]
+fn every_action_is_logged_and_history_keeps_only_what_was_shown() {
+    let c = config(40);
+    let mut s = Game::setup(&c, &players(3), &ctx(0, 0)).unwrap();
+    let mut now = 10;
+    let mut acted = 2; // the blinds
+    // Hand 1: the first player folds, the rest check it down to a showdown.
+    let first = s.hand.as_ref().unwrap().turn.unwrap();
+    while s.hands == 1 && s.hand.as_ref().unwrap().turn.is_some() {
+        let h = s.hand.as_ref().unwrap();
+        let t = h.turn.unwrap();
+        let m = if t == first && !h.folded[t] && h.actions.len() == 2 { "fold" } else if h.current_bet > h.street_bet[t] { "call" } else { "check" };
+        let p = s.players[s.seats[t]].clone();
+        s = Game::act(&c, &s, &p, serde_json::from_value(json!({"move": m})).unwrap(), &ctx(now, now)).unwrap();
+        acted += 1;
+        now += 1;
+    }
+    let h = s.hand.as_ref().unwrap();
+    assert_eq!(h.street, Street::Showdown);
+    assert_eq!(h.actions.len(), acted, "every action, blinds included: {:?}", h.actions);
+    assert_eq!(h.actions[0].act, "small blind");
+    assert_eq!(h.actions[2].act, "fold");
+    assert!(h.actions.windows(2).all(|w| (w[0].street as u8) <= (w[1].street as u8)), "in street order");
+    // The public view carries the full action log.
+    let v = Game::view(&c, &s, None).unwrap();
+    assert_eq!(v["hand"]["actions"].as_array().unwrap().len(), acted);
+    // History: the shown hands only, never the folded one; deltas add up to zero.
+    assert_eq!(s.history.len(), 1);
+    let sum = &s.history[0];
+    let folded_seat = s.seats[first];
+    assert_eq!(sum.shown.len(), 2);
+    assert!(sum.shown.iter().all(|(seat, _, name)| *seat != folded_seat && !name.is_empty()));
+    assert_eq!(sum.deltas.iter().sum::<i64>(), 0);
+    assert_eq!(sum.board.len(), 5);
+    let folded_cards = h.hole[first];
+    let text = serde_json::to_string(&v["history"]).unwrap();
+    assert!(!text.contains(&format!("[{},{}]", folded_cards[0], folded_cards[1])), "a folded hand leaked into history");
+}
+
+#[test]
+fn history_is_bounded() {
+    let c = config(200);
+    let s = play(&c, Game::setup(&c, &players(4), &ctx(0, 0)).unwrap(), passive);
+    assert!(s.history.len() <= near_holdem::HISTORY);
+    assert_eq!(s.history.last().unwrap().hand, s.hands);
+}
