@@ -59,6 +59,15 @@ type HandRecord = {
 };
 const records = new Map<number, HandRecord>();
 let aiReceipts: any[] = [];
+/** Autoplay: this seat plays itself with the scripted player (`window.makeoBot(true)`, or `#autoplay`). */
+let autoplay = /autoplay/.test(location.hash);
+let autoTimer: ReturnType<typeof setTimeout> | null = null;
+(window as any).makeoBot = (on: boolean) => {
+  autoplay = !!on;
+  render();
+};
+let autoRng = 0x2545f491;
+const autoRandom = () => ((autoRng = (Math.imul(autoRng, 1664525) + 1013904223) >>> 0) / 4294967296);
 
 // ------------------------------------------------------------------ small ui
 
@@ -293,19 +302,7 @@ function noteHand(id: number, seats: number[], players: { wallet: string; stack:
   }
   if (me !== null && game.hole[me] && game.openings.hole[me]) rec.mine = { hole: game.hole[me]!, openings: game.openings.hole[me]! };
   // Narrate what changed since the last view of this hand.
-  if (lastSeen && lastSeen.hand === id) {
-    const a = lastSeen.game;
-    for (let i = 0; i < game.players.length; i++) {
-      const d = game.last[i];
-      const was = a.last[i];
-      if (d && JSON.stringify(d) !== JSON.stringify(was) && !/blind/.test(d.act)) log(`<b>${esc(nameAt(rec, i))}</b> ${you(nameAt(rec, i), actWords(d.act, d.to))}`);
-      else if (!d && game.folded[i] && !a.folded[i]) log(`<b>${esc(nameAt(rec, i))}</b> ${you(nameAt(rec, i), "folds")}`);
-    }
-    if (game.board.length > a.board.length) {
-      const street = game.board.length === 3 ? "Flop" : game.board.length === 4 ? "Turn" : "River";
-      log(`${street}: <b>${game.board.slice(a.board.length).map(cardText).join(" ")}</b>`);
-    }
-  }
+  if (lastSeen && lastSeen.hand === id) narrate(rec, lastSeen.game, game);
   rec.live = game;
   lastSeen = { hand: id, game };
 }
@@ -330,6 +327,20 @@ function actWords(act: string, to: number) {
   }
 }
 
+function narrate(rec: HandRecord, a: HandView, game: HandView) {
+  for (let i = 0; i < game.players.length; i++) {
+    const d = game.last[i];
+    const was = a.last[i];
+    if (d && JSON.stringify(d) !== JSON.stringify(was) && !/blind/.test(d.act)) log(`<b>${esc(nameAt(rec, i))}</b> ${you(nameAt(rec, i), actWords(d.act, d.to))}`);
+    else if (!d && game.folded[i] && !a.folded[i]) log(`<b>${esc(nameAt(rec, i))}</b> ${you(nameAt(rec, i), "folds")}`);
+  }
+  if (game.board.length > a.board.length) {
+    const b = game.board.length;
+    const street = a.board.length === 0 && b === 5 ? "Board" : b === 3 ? "Flop" : b === 4 ? "Turn" : a.board.length < 4 ? "Board" : "River";
+    log(`${street}: <b>${game.board.slice(a.board.length).map(cardText).join(" ")}</b>`);
+  }
+}
+
 function onHandEnd(hand: { hand: number; changes: Record<string, number>; void: boolean; public_hand?: Ended | null }) {
   const end = hand.public_hand;
   if (!end || !end.game) return;
@@ -345,6 +356,10 @@ function onHandEnd(hand: { hand: number; changes: Record<string, number>; void: 
   }
   const r = records.get(hand.hand)!;
   const g = end.game;
+  if (lastSeen && lastSeen.hand === hand.hand) {
+    narrate(r, lastSeen.game, g);
+    lastSeen = null;
+  }
   const mineDelta = myWallet() ? hand.changes[myWallet()!] ?? hand.changes[Object.keys(hand.changes).find((k) => k.toLowerCase() === myWallet()) ?? ""] : undefined;
   if (g.street === "Showdown" && g.showdown) {
     staged = { ended: end, changes: hand.changes, until: Date.now() + 7200, hand: hand.hand };
@@ -564,6 +579,19 @@ function render() {
   });
 
   drawDock(game && !showing ? game : null, myIndex);
+  if (autoplay && live && live.game && !sent && !autoTimer) {
+    const g = live.game;
+    const mine = seatOf(g, me);
+    if (mine !== null && g.options?.player === mine && isBetting(g)) {
+      autoTimer = setTimeout(() => {
+        autoTimer = null;
+        const now = room?.view?.hand?.game;
+        if (!now || now.seq !== g.seq) return render();
+        const move = scriptedMove(now, mine, autoRandom, { aggression: 0.55, looseness: 0.55 });
+        if (move) void act(move, move.move);
+      }, 900);
+    }
+  }
   drawLog();
   drawBar();
 }
@@ -733,7 +761,7 @@ function drawBar() {
   const screen = document.body.dataset.screen;
   if (screen === "table" && room) {
     const h = room.view?.hand;
-    info.innerHTML = `<b>${practice ? "Practice" : room.view?.lobby ? "Private table" : "Table"}</b><span class="sep"></span>Blinds 1/2<span class="sep"></span>${h ? `Hand ${h.id}` : "Between hands"}${practice ? '<span class="chip">no money</span>' : ""}`;
+    info.innerHTML = `<b>${practice ? "Practice" : room.view?.lobby ? "Private table" : "Table"}</b><span class="sep"></span>Blinds 1/2<span class="sep"></span>${h ? `Hand ${h.id}` : "Between hands"}${practice ? '<span class="chip">no money</span>' : ""}${autoplay ? '<span class="chip ai">autoplay</span>' : ""}`;
     btns.innerHTML = "";
   } else if (screen === "receipt") {
     info.innerHTML = `<b>Receipt</b>`;
