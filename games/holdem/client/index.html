@@ -1,8 +1,56 @@
 <!doctype html>
-<html><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Hold'em</title><link rel="stylesheet" href="./styles.css"></head>
-<body><main id="game"><h1>Your Makeo game</h1>
-<p id="status">Use the saved brief and Makeo skills to build your game.</p></main>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="makeo-orientation" content="any">
+<meta name="theme-color" content="#080a18">
+<title>NEAR Hold'em</title>
+<link rel="stylesheet" href="./styles.css"></head>
+<body data-screen="title">
+<div class="sky"></div><canvas id="stars"></canvas>
+
+<header class="bar">
+  <div class="logo"><span class="chipmark"></span><span class="lt">NEAR HOLD&#39;EM</span></div>
+  <div class="tableinfo" id="tableinfo"></div>
+  <div class="barbtns" id="barbtns"></div>
+</header>
+
+<main>
+  <!-- TITLE -->
+  <section id="title" class="screen">
+    <div class="hero">
+      <div class="kicker">No-limit Texas Hold'em · 2 to 6 seats</div>
+      <h1>Every card sealed.<br><span>Every AI move signed.</span></h1>
+      <p class="lede">Your hole cards are dealt inside an attested enclave and committed before the first bet. AI players think in a TEE on NEAR AI Cloud, and each decision carries its signature. Check it all on the receipt.</p>
+      <div class="fan" aria-hidden="true"><div class="pc red" style="--r:-14deg">A<i>♥</i></div><div class="pc" style="--r:-3deg">K<i>♠</i></div><div class="pc back" style="--r:9deg"></div></div>
+      <div class="menu" id="menu"></div>
+      <div class="tables" id="tables"></div>
+    </div>
+  </section>
+
+  <!-- TABLE -->
+  <section id="table" class="screen">
+    <div class="stage" id="stage">
+      <div class="felt" id="felt">
+        <div class="rail"></div>
+        <div class="center">
+          <div class="pot" id="pot"></div>
+          <div class="board" id="board"></div>
+          <div class="note" id="note"></div>
+        </div>
+      </div>
+      <div class="seats" id="seats"></div>
+    </div>
+    <div class="dock" id="dock"></div>
+    <aside class="log" id="log"><div class="lh">Table log</div><div class="lines" id="loglines"></div></aside>
+  </section>
+
+  <!-- RECEIPT -->
+  <section id="receipt" class="screen"><div class="wrap" id="rwrap"></div></section>
+</main>
+
+<div class="toast" id="toast"></div>
+<div class="sheet" id="sheet"><div class="sheet-card" id="sheetcard"></div></div>
+
 <script src="./makeo-rooms.js"></script>
-<script type="module" src="./main.js"></script></body></html>
+<script type="module" src="./main.js"></script>
+</body></html>
