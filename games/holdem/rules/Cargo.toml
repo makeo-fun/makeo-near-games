@@ -1,0 +1,23 @@
+[package]
+name = "near-holdem"
+version = "0.1.0"
+edition = "2021"
+license-file = "../../../LICENSE"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+makeo-runtime = "*"
+makeo-wasm-abi = "*"
+serde = "*"
+serde_json = "*"
+makeo-conformance = { optional = true }
+
+[features]
+check = ["dep:makeo-conformance"]
+
+[dev-dependencies]
+makeo-runtime = { features = ["testkit"] }
+makeo-series = "*"
+makeo-conformance = "*"

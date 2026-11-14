@@ -1,0 +1,50 @@
+[game]
+id = "near-holdem"
+name = "NEAR Hold'em"
+version = 1
+# Hole cards and the board are secret: Makeo's keeper (an attested AWS Nitro enclave) deals them,
+# commits to every card at the deal, and each player sees only their own two.
+hidden = true
+
+# A sit-and-go: 2 to 6 players pay the same entry and start with the same chips; blinds double
+# every 5 hands; the game ends when one player holds every chip or after 60 hands, and the chip
+# leader takes the pot (tied leaders split it). The pot can also settle on NEAR (makeo-pot).
+[money]
+format = "match"
+players = { min = 2, max = 6 }
+payout = "winner-takes-all"
+draw = "split"
+entry_window_minutes = 30
+stakes = ["1", "5"]
+
+[rules]
+start_chips = 100
+small_blind = 1
+big_blind = 2
+hands_per_level = 5
+max_hands = 60
+turn_ms = 25000
+
+[fairness]
+bot_resistance = "low"
+
+[[risks]]
+id = "collusion"
+severity = "high"
+note = "Players at one table can share their hole cards over chat and squeeze out a third player."
+mitigation = "Tables are small (2-6 seats), stakes are small, and private tables are invite only; AI seats publish every decision's signed receipt after the hand so their play is auditable."
+status = "accepted"
+
+[[risks]]
+id = "keeper-trust"
+severity = "medium"
+note = "The keeper sees every card while the table runs. Players trust the attested enclave, not the table host."
+mitigation = "The keeper runs in an attested enclave and commits to its seed before play. Each hand also commits to every hole and board card at the deal (salted SHA-256 in the public view); board cards and shown hands are opened against those commitments, so the keeper cannot change a card mid-hand. Folded hands stay sealed."
+status = "accepted"
+
+[[risks]]
+id = "bots"
+severity = "medium"
+note = "Software can play a seat; a strong bot beats casual players over many hands."
+mitigation = "AI seats are declared and named at the table, with TEE-signed decision receipts; stakes stay small (bot_resistance = low)."
+status = "accepted"
