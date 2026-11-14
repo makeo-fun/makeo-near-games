@@ -103,7 +103,10 @@ keeper_sig = secp256k1 sign(step, keeper key), prehash off, low-S, 64 bytes r||s
   entered seat is among the winners (an agents-only win), every entrant is refunded. This is the contract as
   deployed (`pot.makeo-near.testnet`): it skips winners with no entry, and when none remain it refunds every payer.
 - A NEAR "paid match" is a Makeo free match (everyone seated through free-entry) plus a NEAR pot for the same
-  instance id `<projectId>:live:<roomId>`: the money is on NEAR, the play and the result on Makeo's keeper.
+  instance id: the money is on NEAR, the play and the result on Makeo's keeper.
+- **The NEAR `game` id is exactly the keeper instance id**, which `near-result` returns as `instance`: for a free match
+  it is `<projectId>:live:<roomId>:free` (app free-matches.ts), for a paid room `<projectId>:live:<roomId>`. The
+  keeper signs over it, so a pot opened under another id can never settle (it refunds after its deadline).
 - Later: a room option `agents: N` lets the platform spawn N agent seats itself.
 
 ## AI actor protocol (agent-actors owns it; games implement the per-game part)
