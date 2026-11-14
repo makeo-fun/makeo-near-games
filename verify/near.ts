@@ -121,7 +121,9 @@ export async function settleArgs(contract: string, game: string): Promise<{ stat
   if (!res.ok) return null;
   const { txns } = (await res.json()) as { txns?: { transaction_hash: string; predecessor_account_id: string; outcomes?: { status?: boolean } }[] };
   for (const t of txns ?? []) {
-    const tx = await rpc<{ transaction: { actions: { FunctionCall?: { method_name: string; args: string } }[] } }>("tx", { tx_hash: t.transaction_hash, sender_account_id: t.predecessor_account_id, wait_until: "FINAL" });
+    const tx = await rpc<{ status: Record<string, unknown>; transaction: { actions: { FunctionCall?: { method_name: string; args: string } }[] } }>("tx", { tx_hash: t.transaction_hash, sender_account_id: t.predecessor_account_id, wait_until: "FINAL" });
+    // Only the settle the contract accepted: a refused one (an attack, a second settle) is skipped.
+    if ("Failure" in (tx.status ?? {})) continue;
     for (const a of tx.transaction.actions) {
       if (a.FunctionCall?.method_name !== "settle") continue;
       const args = JSON.parse(Buffer.from(a.FunctionCall.args, "base64").toString()) as { game: string; state: string; keeper_sig: string };
