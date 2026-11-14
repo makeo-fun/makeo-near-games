@@ -28,7 +28,10 @@ function kindOf(a: Logged): string {
  * The HoldemView for the hand in play. `names(wallet)` names a seat; `unsealed` says whether this
  * player has opened their own cards yet (the UI's "unseal" moment); `extra` adds lobby/end events.
  */
-export function noirView(g: SitGoView, me: string | null, names: (wallet: string) => string, unsealed: boolean): NoirView {
+/** What the page knows beyond the rules' view: who is AI, their published receipts, the model. */
+export type NoirExtras = { kinds?: Record<string, string>; receipts?: any[]; model?: string };
+
+export function noirView(g: SitGoView, me: string | null, names: (wallet: string) => string, unsealed: boolean, extras: NoirExtras = {}): NoirView {
   const wallet = (i: number) => g.hand!.players[i].wallet.toLowerCase();
   const seats: NoirSeat[] = g.players.map((w) => ({ id: w.toLowerCase(), name: names(w), title: "" }));
   const view: NoirView = { me: { seat: me ?? "", hole: null }, seats, log: [], pending: null, hand: g.hands, finished: g.finished };
@@ -42,7 +45,8 @@ export function noirView(g: SitGoView, me: string | null, names: (wallet: string
   hand.players.forEach((p, i) => (stacks[wallet(i)] = p.stack));
   log.push({ t: "hand", n: g.hands, button: wallet(hand.button), sb: wallet(hand.sb), bb: wallet(hand.bb), blinds: g.blinds, stacks });
   // The deal: the keeper's commitments to every card, made before the first bet.
-  log.push({ t: "deal", deck_commitment: hand.commitments.board[0] ?? "", commitments: hand.commitments, pcr0: "", keeper: "" });
+  const cardCount = hand.players.length * 2 + hand.commitments.board.length;
+  log.push({ t: "deal", deck_commitment: hand.commitments.hole[0]?.[0] ?? "", cardCount, commitments: hand.commitments, pcr0: "", keeper: "", seats: hand.players.map((_, i) => wallet(i)) });
   const mine = meIdx >= 0 ? hand.hole[meIdx] : null;
   if (mine && unsealed) {
     log.push({ t: "hole", cards: mine.map(card), private: true });
@@ -97,12 +101,12 @@ export function noirView(g: SitGoView, me: string | null, names: (wallet: string
       }
     });
     const winners = [...new Set(sd.pots.flatMap((p) => p.winners))].map(wallet);
-    log.push({ t: "showdown", hands, rank, best, winners, pots: sd.pots.map((p) => ({ amount: p.amount, eligible: p.eligible.map(wallet), winners: p.winners.map(wallet) })), result: resultOf(hand, wallet) });
+    log.push({ t: "showdown", inHand: hand.players.map((_, i) => wallet(i)).filter((_, i) => !hand.folded[i]).concat(hand.players.map((_, i) => wallet(i)).filter((_, i) => hand.folded[i])), hands, rank, best, winners, pots: sd.pots.map((p) => ({ amount: p.amount, eligible: p.eligible.map(wallet), winners: p.winners.map(wallet) })), result: resultOf(hand, wallet) });
   } else if (hand.street === "Folded" && hand.won) {
     const w = hand.won.findIndex((x, i) => x > 0 && !hand.folded[i]);
     log.push({ t: "won", seat: w >= 0 ? wallet(w) : null, pot: hand.pot, result: resultOf(hand, wallet) });
   }
-  if (g.finished) log.push(endOf(g, hand, wallet, names));
+  if (g.finished) log.push(endOf(g, hand, wallet, names, extras));
 
   // What the keeper waits on from this player.
   if (mine && !unsealed) view.pending = { kind: "unseal" };
@@ -125,7 +129,7 @@ function resultOf(hand: HandView, wallet: (i: number) => string) {
 
 /** The game's end: final ranking by chips, the winners and shares that settle the pot, and the last
  * hand's card commitments with every opening the rules published (folded cards stay sealed). */
-function endOf(g: SitGoView, hand: HandView, wallet: (i: number) => string, names: (w: string) => string): NoirEvent {
+function endOf(g: SitGoView, hand: HandView, wallet: (i: number) => string, names: (w: string) => string, extras: NoirExtras): NoirEvent {
   const cards: { label: string; commitment: string; salt: string | null; card: string | null; status: string }[] = [];
   hand.players.forEach((_, i) => {
     [0, 1].forEach((j) => {
@@ -140,9 +144,19 @@ function endOf(g: SitGoView, hand: HandView, wallet: (i: number) => string, name
     const o = hand.openings.board[k];
     cards.push({ label: `board ${k + 1}`, commitment: c, salt: o?.salt ?? null, card: o ? card(o.card) : null, status: o ? "revealed by the keeper" : "never dealt" });
   });
+  const kinds: Record<string, string> = {};
+  g.players.forEach((w) => (kinds[w.toLowerCase()] = extras.kinds?.[w.toLowerCase()] ?? "PLAYER"));
+  // The AI runner's receipts, in the engine's shape (move kinds as the table names them).
+  const receipts = (extras.receipts ?? []).map((r) => ({
+    ...r, seat: String(r.seat).toLowerCase(), round: `hand ${r.round}`,
+    move: r.move && typeof r.move === "object" ? { kind: r.move.move, to: r.move.to } : { kind: String(r.move) },
+  }));
   return {
-    t: "end", hands: g.hands, chips: Object.fromEntries(g.players.map((w, s) => [w.toLowerCase(), g.chips[s]])),
-    winners: g.winners, shares: g.shares, cards, receipts: [], state: g.state ?? null,
+    t: "end", mock: false, kinds, model: extras.model ?? (receipts[0]?.model ?? "NEAR AI Cloud"), receipts,
+    deck_commitment: hand.commitments.hole[0]?.[0] ?? "", seed: "", pcr0: "", near: null,
+    checked: `${cards.filter((c) => c.card).length} opened cards`,
+    hands: g.hands, chips: Object.fromEntries(g.players.map((w, s) => [w.toLowerCase(), g.chips[s]])),
+    winners: g.winners, shares: g.shares, cards, state: g.state ?? null,
   };
 }
 
@@ -177,6 +191,8 @@ export class NoirLog {
   private unsealed = new Set<number>();
   private last: NoirView | null = null;
 
+  extras: NoirExtras = {};
+
   constructor(private readonly opening: NoirEvent[] = []) {}
 
   /** This player opened their own cards for `hand` (the UI's unseal moment). */
@@ -185,7 +201,7 @@ export class NoirLog {
   }
 
   update(g: SitGoView, me: string | null, names: (wallet: string) => string): NoirView {
-    const v = noirView(g, me, names, this.unsealed.has(g.hands) || !me);
+    const v = noirView(g, me, names, this.unsealed.has(g.hands) || !me, this.extras);
     if (this.current && this.current.hand !== v.hand) this.frozen.push(...this.current.events);
     this.current = { hand: v.hand, events: v.log };
     this.last = { ...v, log: [...this.opening, ...this.frozen, ...v.log] };
