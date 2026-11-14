@@ -953,4 +953,10 @@ function aiReceiptsHTML() {
 })();
 
 show("title");
-void enter(() => Makeo.room() as Promise<MakeoRoom<MatchView> | null>);
+// The room this page was opened for; a bare `?room=` link (as agent runners share) joins it directly.
+void enter(async () => {
+  const opened = (await Makeo.room()) as MakeoRoom<MatchView> | null;
+  if (opened) return opened;
+  const id = new URL(location.href).searchParams.get("room");
+  return id ? ((await Makeo.join(id)) as MakeoRoom<MatchView>) : null;
+});
