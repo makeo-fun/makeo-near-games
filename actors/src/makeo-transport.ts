@@ -168,7 +168,9 @@ export class MakeoTransport implements RoomTransport {
 
   async publicLog() {
     const view = this.paid?.view;
-    return view ? (Array.isArray(view.log) ? view.log : [view]) : [];
+    // A game's public log: view.log, or the game's own (NEARWOLF: view.game.log); else the whole view.
+    const game = (view as { game?: { log?: unknown } } | null)?.game;
+    return view ? (Array.isArray(view.log) ? view.log : Array.isArray(game?.log) ? (game!.log as unknown[]) : [view]) : [];
   }
 
   async status(): Promise<RoomStatus> {
