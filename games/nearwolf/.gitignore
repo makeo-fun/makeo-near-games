@@ -1,0 +1,14 @@
+node_modules/
+target/
+dist/
+.makeo/project.json
+.makeo/dev.json
+.makeo/screenshots/
+*.makeo.json
+# Makeo-managed authoring guidance and local tool config (not game source)
+.makeo/
+AGENTS.md
+CLAUDE.md
+.mcp.json
+client/makeo.d.ts
+client/makeo-games.d.ts
