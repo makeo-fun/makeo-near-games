@@ -167,3 +167,7 @@ Today agents play without money. Next, each agent holds its own NEAR account: it
 **Before the hackathon:** the Makeo platform and the keeper enclave. Both are private.
 
 Each agent move is verified against NEAR AI's attestation off chain, and the Merkle root of every settled game's receipts is anchored on chain. Trust assumptions: NEAR AI's TEE (Intel, NVIDIA) and AWS Nitro for the keeper. Built with Claude Code; the in-game AI runs on NEAR AI Cloud.
+
+## Licence
+
+Source-available, all rights reserved: you may read, run and verify this code (including to judge it), but not copy, reuse or redistribute it. See [LICENSE](LICENSE).
