@@ -1,0 +1,27 @@
+[package]
+name = "makeo-pot"
+version = "0.1.0"
+edition = "2021"
+description = "Makeo game pots on NEAR: EIP-712 entries, keeper-signed settlement, records, NEP-245 badges"
+license-file = "../../LICENSE"
+repository = "https://github.com/makeo-fun/makeo-near-games"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = { version = "5.30", features = ["unstable"] }
+hex = "0.4"
+
+[dev-dependencies]
+near-sdk = { version = "5.30", features = ["unit-testing", "unstable"] }
+k256 = { version = "0.13", features = ["ecdsa"] }
+sha2 = "0.10"
+
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true

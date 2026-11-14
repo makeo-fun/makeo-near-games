@@ -52,16 +52,62 @@ platform-near decides the exact bytes **from what the keeper already signs** (it
 step) and documents them here under "Result format". The contract stores the keeper key(s) registered by the owner,
 with the PCR0 they came from (public, auditable). No valid result by the deadline → everyone can refund.
 
-### Result format
-TBD by platform-near by 19:30 UTC. Until then: `{game, winners: [seat], role_or_seed_commitment, moves_root}`.
+### Result format (fixed by platform-near; no keeper change)
+The keeper already signs, after every batch of a hidden game, its **step** (`runtime/keeper/src/hidden.ts`, `run`):
+```
+state_hash = sha256( '{"domain":"makeo:runtime:state:v1","value":' + STATE + '}' )
+step       = sha256( '{"domain":"makeo:hidden:step:v1","value":{"count":' + COUNT + ',"head":"' + HEAD + '","instance":' + json(INSTANCE) + ',"state":"' + state_hash + '"}}' )
+keeper_sig = secp256k1 sign(step, keeper key), prehash off, low-S, 64 bytes r||s (no recovery byte), hex 0x…
+```
+- `STATE` is the game's **full** final state (not the room's redacted copy) as canonical JSON: serde_json compact,
+  object keys sorted by bytes, integers only (`canonicalJson` in `runtime/feeds/src/fact.ts`). Hashes are `0x` + 64 lowercase hex.
+- `INSTANCE` is the keeper instance id = the contract's `game` id. `HEAD`/`COUNT` are the final checkpoint's
+  `input_head`/`event_count` (the room's last output, `journal.checkpoint`).
+- So `settle(game, count, head, state, keeper_sig)`: the contract rebuilds `state_hash` and `step` from those bytes,
+  `ecrecover`s the sig (tries v=0 and v=1) and accepts only a registered keeper key. Then it parses `state` and requires:
+  - `state.finished == true` (top level, set by the runtime when the game's `finished()` is true);
+  - `state.game.winners`: **an array of seat addresses, lowercase `0x` + 40 hex** (the EVM wallets the keeper/runtime
+    use as actors). **Games must put this field in their game state** (it is part of the state hash, so it is signed).
+    Empty array = draw (everyone is refunded).
+  - Optional `state.game.shares`: integers, same length as `winners`, the pot split by weight (default equal).
+  - **Or, for a Makeo series game** (no `game.winners`): the runtime's own `state.game.outcome`. `Ranking` pays its
+    first tier (equal split), `Void` refunds everyone. A series can't stop redacting its rules (`makeo-series` puts
+    `game.rules = {hidden: hash(rules)}`), so once finished the game publishes its full rules state in its public view
+    (`journal.public_view.game.state`). The operator and the app put it back, checked against that hash, before the
+    full state hash is checked. No runtime or keeper change is needed.
+- Payout: pot = sum of stakes entered; winners that did not enter get nothing (their weight is dropped); if no winner
+  entered, everyone is refunded. Rounding dust goes to the first paid winner. Each paid winner gets a NEP-245 badge.
+- **Games: once finished, `redact` returns the game state unredacted** (`fn redact(c, s) { if finished { return to_value(s) } … }`).
+  The seed is public at the end anyway. Then the room's last output *is* the full state the keeper hashed, and
+  `state_hash(room.state) == journal.checkpoint.state_hash`; the operator checks that before it settles.
+- Where the bytes come from: the room's last keeper reply `{output, step, signature}` (the Makeo app keeps step and
+  signature for the operator), STATE = canonical JSON of that output's `state`. Fallback for a game that keeps redacting:
+  replay the keeper's published history (`GET /hidden/<instance>/history`, after the end) through `rules.wasm`.
+  The record stores `{step, state_hash, head, count, winners, keeper}`; the state is in the `settle` call's arguments.
+- Size: measured on a NEAR sandbox, `settle` with a 27 KB state burns ~17 Tgas (limit 300), so states up to a few hundred KB fit.
 
 ## Contract interface (`contracts/makeo-pot`, near-sdk Rust) — draft, platform-near owns it
 - `register_keeper(pubkey_secp256k1, pcr0)` owner only
 - `open_game(game, rules_digest, stake_yocto, max_seats, deadline_ms)`
 - `enter(game, seat, payout, stake, expires_at_ms, sig)` payable (testnet NEAR), checks `MakeoNearEntry`
-- `settle(game, result, keeper_sig)` anyone may submit; pays winners' payout accounts; mints badges; stores record
+- `settle(game, count, head, state, keeper_sig)` anyone may submit (see Result format); pays winners' payout accounts; mints badges; stores record
 - `refund(game, seat)` after the deadline if unsettled
 - views: `get_game`, `get_record`; NEP-245 `mt_*` for badges
+
+## Agent seats (AI players without a wallet)
+- An **agent seat** is a keyed seat with no wallet funding: the agent holds its own EVM key (the seat address) and a
+  session key, and joins the Makeo room through **free-entry** (`POST /api/games/<p>/rooms/<r>/free-entry`, a signed
+  GameSession grant; no Privy, no Makeo account, no deposit). It plays and gets its sealed view like any player.
+- An agent seat **never enters the pot**. Only humans stake, via `MakeoNearEntry` (relayed by the operator).
+- **Counted out of the split:** `settle` pays only winners who entered, equally (or by `shares`) among them. If no
+  entered seat is among the winners (an agents-only win), every entrant is refunded. This is the contract as
+  deployed (`pot.makeo-near.testnet`): it skips winners with no entry, and when none remain it refunds every payer.
+- A NEAR "paid match" is a Makeo free match (everyone seated through free-entry) plus a NEAR pot for the same
+  instance id: the money is on NEAR, the play and the result on Makeo's keeper.
+- **The NEAR `game` id is exactly the keeper instance id**, which `near-result` returns as `instance`: for a free match
+  it is `<projectId>:live:<roomId>:free` (app free-matches.ts), for a paid room `<projectId>:live:<roomId>`. The
+  keeper signs over it, so a pot opened under another id can never settle (it refunds after its deadline).
+- Later: a room option `agents: N` lets the platform spawn N agent seats itself.
 
 ## AI actor protocol (agent-actors owns it; games implement the per-game part)
 Per game, `games/<game>/actor.ts` exports:
