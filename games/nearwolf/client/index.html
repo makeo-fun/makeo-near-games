@@ -38,7 +38,7 @@
   <div class="logo"><span class="dotmoon"></span>NEARWOLF</div>
   <div class="room" id="roomInfo"></div>
   <div class="right">
-    <button class="chip ok" id="keeperChip"><svg class="i"><use href="#i-seal"/></svg><span>Keeper attested</span></button>
+    <button class="chip ok" id="keeperChip"><svg class="i"><use href="#i-seal"/></svg><span id="keeperLbl">Keeper-dealt</span></button>
     <button class="chip recbtn" id="recBtn"><svg class="i"><use href="#i-ledger"/></svg>Record</button>
   </div>
 </header>
@@ -141,8 +141,8 @@
     </div>
     <aside class="g-record" id="record"><div class="panel rec" style="height:100%">
       <div class="trust">
-        <div class="trow2"><div class="tic"><svg class="i"><use href="#i-lock"/></svg></div><div><b>Makeo keeper · AWS Nitro</b><span id="pcrLine">attested executor</span></div><div class="okk">attested ✓</div></div>
-        <div class="trow2"><div class="tic"><svg class="i"><use href="#i-chip"/></svg></div><div><b>Inference · NEAR AI Cloud</b><span>Intel TDX + NVIDIA CC</span></div><div class="okk">attested ✓</div></div>
+        <div class="trow2"><div class="tic"><svg class="i"><use href="#i-lock"/></svg></div><div><b>Makeo keeper · AWS Nitro</b><span id="pcrLine">deals roles, opens sealed moves</span></div><div class="okk" id="keeperOk">hidden game</div></div>
+        <div class="trow2"><div class="tic"><svg class="i"><use href="#i-chip"/></svg></div><div><b>Inference · NEAR AI Cloud</b><span>AI moves TEE-signed · receipts at the end</span></div><div class="okk">verify after</div></div>
       </div>
       <div class="tabs" id="recTabs"><button data-t="ledger" class="on">Ledger</button><button data-t="moves">Moves</button></div>
       <div class="recbody" id="recBody"></div>

@@ -126,7 +126,7 @@ export function contradictions(v: GameView, name: (seat: number) => string): { l
     const who = [...claimers[role]];
     if (who.length > 1) {
       const first = who[0];
-      list.push({ text: `${who.map(name).join(" and ")} all claim ${ROLES[role].name}. There is only one.`, seat: first, round: 0 });
+      list.push({ text: `${who.map(name).join(" and ")} ${who.length === 2 ? "both" : "all"} claim ${ROLES[role].name}. There is only one.`, seat: first, round: 0 });
       for (const c of councils(v)) {
         for (const [i, m] of c.moves) {
           const claims = (m.kind === "claim" && m.role === role) || (role === "seer" && m.kind === "report");

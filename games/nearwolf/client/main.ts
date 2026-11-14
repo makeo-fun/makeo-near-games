@@ -274,6 +274,8 @@ function renderRoomInfo() {
     return;
   }
   const kind = r.kind === "practice" ? `<span class="practice-tag">PRACTICE</span>` : r.kind === "paid" ? `<span>Paid match</span>` : `<span>Free match</span>`;
+  $("#keeperLbl").textContent = r.hidden ? "Keeper-dealt" : "Practice";
+  $("#keeperOk").textContent = r.hidden ? "hidden game" : "in your browser";
   $("#roomInfo").innerHTML = `${kind}<span class="sep"></span><span><b>${n}</b> seats</span><span class="sep"></span><span>${r.hidden ? "Keeper-dealt" : "In your browser"}</span>`;
 }
 
@@ -1147,6 +1149,65 @@ function frame(t: number) {
 }
 requestAnimationFrame(frame);
 
+/* ---------------- design review (preview only): sample views, never a real room ---------------- */
+function reviewView(phase: GameView["phase"], round: number): GameView {
+  const roles: Role[] = ["seer", "villager", "wolf", "villager", "villager", "wolf", "healer", "villager", "villager"];
+  const over = phase === "end";
+  const log: Entry[] = [
+    { kind: "dawn", round: 1, died: 4, role: "villager" },
+    { kind: "council", round: 1, moves: [
+      [0, { kind: "report", target: 5, wolf: true, line: "I am the Seer. Hale is a wolf." }],
+      [1, { kind: "accuse", target: 2, line: "Corin was down by the ferry at midnight." }],
+      [2, { kind: "vouch", target: 5, line: "Hale's kept the treeline all winter. I trust him." }],
+      [3, { kind: "silent", line: "Grind slow. Speak slower." }],
+      [5, { kind: "report", target: 6, wolf: true, line: "I am the Seer. The moon showed me Maud. Wolf." }],
+      [6, { kind: "vouch", target: 1, line: "Wren's hands are for healing." }],
+      [7, { kind: "accuse", target: 8, line: "Pell's bread tastes of guilt." }],
+      [8, { kind: "accuse", target: 7, line: "Tobias can't account for a single night." }],
+    ] },
+    { kind: "pyre", round: 1, votes: [[0, 5], [1, 2], [2, 7], [3, 7], [5, 6], [6, 7], [7, 8], [8, 7]], burned: 7, role: "villager" },
+    { kind: "dawn", round: 2, died: 6, role: "healer" },
+  ];
+  if (round >= 2 && ["pyre", "dusk", "end"].includes(phase))
+    log.push({ kind: "council", round: 2, moves: [
+      [0, { kind: "report", target: 5, wolf: true, line: "Maud was the Healer. Hale called her a wolf. Hale lies." }],
+      [1, { kind: "accuse", target: 5, line: "A Seer who names the healer first? Convenient." }],
+      [2, { kind: "accuse", target: 0, line: "Two voices say Ash." }],
+      [3, { kind: "accuse", target: 5, line: "The flour has settled. Hale." }],
+      [5, { kind: "claim", role: "seer", line: "I stand by every vision." }],
+      [8, { kind: "accuse", target: 5, line: "I voted wrong yesterday. Not again." }],
+    ] });
+  if (["dusk", "end"].includes(phase)) log.push({ kind: "pyre", round: 2, votes: [[0, 5], [1, 5], [2, 0], [3, 5], [5, 0], [8, 5]], burned: 5, role: "wolf" });
+  const dead = new Set<number>();
+  for (const e of log) {
+    if (e.kind === "dawn" && e.died != null) dead.add(e.died);
+    if (e.kind === "pyre" && e.burned != null) dead.add(e.burned);
+  }
+  return {
+    seats: roles.map((r, i) => ({ seat: i, persona: i, alive: !dead.has(i), role: over || dead.has(i) || i === 0 ? r : null, house: over ? i % 2 === 1 : null, wallet: over && i % 2 === 0 ? `0x${String(i).repeat(40)}` : null })),
+    you: 0, role: "seer", phase, round, deadline_ms: Date.now() + 23000, seq: 1,
+    mine: null, pack: null, looks: [{ round: 1, target: 5, wolf: true }, { round: 2, target: 2, wolf: true }], last_heal: null,
+    log, winner: over ? "village" : null, deal: { wolves: 2, seer: true, healer: true, seats: 9 },
+  };
+}
+function bootReview(name: string) {
+  const spec: Record<string, [GameView["phase"], number]> = { play: ["council", 2], night: ["night", 2], dawn: ["dawn", 2], pyre: ["pyre", 2], dusk: ["dusk", 2], end: ["end", 2], receipt: ["end", 2], reveal: ["night", 1] };
+  if (!spec[name]) return false;
+  v = reviewView(...spec[name]);
+  if (name === "reveal") {
+    startReveal();
+    setTimeout(flipCard, 300);
+    return true;
+  }
+  show("game");
+  buildSeats();
+  phaseKey = "";
+  onView({ game: v });
+  if (name === "receipt") setTimeout(() => void openReceipt(), 200);
+  return true;
+}
+
 /* ---------------- start ---------------- */
 showTitle();
-void enter(() => Makeo.room());
+const review = window.makeoReview?.screen;
+if (!(review && bootReview(review))) void enter(() => Makeo.room());
