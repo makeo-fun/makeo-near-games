@@ -22,6 +22,7 @@ const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "
 const short = (w: string) => (w.length > 12 ? `${w.slice(0, 6)}…${w.slice(-4)}` : w);
 let room: Room | null = null;
 let mountTable: () => void = () => undefined;
+let withOpening = true;
 let booted = false;
 let toastT = 0;
 
@@ -173,7 +174,7 @@ function start() {
   const HD = ((window as any).HOLDEM ??= {});
   HD.SEATS = g.players.map((w) => ({ id: w.toLowerCase(), name: nameOf(w), title: "" }));
   const joined = g.players.length;
-  const opening = [{ t: "lobby", joined, max: joined, stake: room.kind === "paid" ? room.lobby.entry?.stake : room.kind === "practice" ? "PRACTICE" : "FREE PLAY", line: room.kind === "practice" ? "You against the house's practice players." : "Humans and verified AI agents, one table. Every seat looks the same." }];
+  const opening = !withOpening ? [] : [{ t: "lobby", joined, max: joined, stake: room.kind === "paid" ? room.lobby.entry?.stake : room.kind === "practice" ? "PRACTICE" : "FREE PLAY", line: room.kind === "practice" ? "You against the house's practice players." : "Humans and verified AI agents, one table. Every seat looks the same." }];
   (window as any).HOLDEM_BOOT = { adapter: createMakeoAdapter(room, { names: nameOf, extras, opening, onRefused: toast }), seats: HD.SEATS };
   $("#front").hidden = true;
   void loadReceipts();
@@ -225,8 +226,9 @@ function addPayoutButton() {
 }
 
 /** Runs the front door; `mount` starts the page's table once play begins (HOLDEM_BOOT is set). */
-export function runFront(mount: () => void) {
+export function runFront(mount: () => void, options: { opening?: boolean } = {}) {
   mountTable = mount;
+  withOpening = options.opening !== false;
   // The room this page was opened for; a bare `?room=` link (as agent runners share) joins it directly.
   void enter(async () => {
     const opened = (await Makeo.room()) as Room | null;

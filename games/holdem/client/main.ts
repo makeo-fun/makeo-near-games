@@ -5,4 +5,5 @@ import "./glass/story.js";
 import "./glass/app.js";
 import { runFront } from "./front.js";
 
-runFront(() => (window as any).HOLDEM.mount());
+// The front door is the lobby here; the table opens on the deal.
+runFront(() => (window as any).HOLDEM.mount(), { opening: false });
