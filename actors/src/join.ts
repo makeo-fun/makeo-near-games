@@ -12,10 +12,12 @@
 //
 // Env: MAKEO_PLATFORM_URL (default https://app-dev.makeo.fun); NEAR_AI_API_KEY / NEAR_AI_MODEL for
 // NEAR AI Cloud moves (verified with verify/nearai.ts), else scripted. Receipts go to actors/receipts/.
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createNearAiVerifier } from "../../verify/nearai";
 import { HumanSeat } from "./human";
 import { MakeoTransport, openFreeMatch } from "./makeo-transport";
+import { enterPot, implicitAccount } from "./near-entry";
 import { nearAiFromEnv } from "./nearai";
 import { pickPersonas } from "./personas";
 import { ReceiptStore } from "./receipts";
@@ -27,18 +29,26 @@ const opt = (name: string, fallback?: string) => { const i = args.indexOf(`--${n
 const base = (opt("base") ?? process.env.MAKEO_PLATFORM_URL ?? "https://app-dev.makeo.fun").replace(/\/$/, "");
 const projectId = opt("project") ?? process.env.MAKEO_PROJECT_ID;
 if (!projectId || args.includes("--help")) {
-  console.log("usage: bun actors/src/join.ts --game <dir> --project <projectId> [--room <roomId>] [--ai N] [--seats N] [--think ms]");
+  console.log("usage: bun actors/src/join.ts --game <dir> --project <projectId> [--room <roomId> [--start]] [--ai N] [--humans K [--stake NEAR] [--operator URL]] [--seats N] [--think ms]");
   process.exit(projectId ? 0 : 1);
 }
 const gameDir = resolve(process.cwd(), opt("game") ?? "games/nearwolf");
 const actor = (await import(join(gameDir, "actor.ts"))) as GameActor;
 const ai = Number(opt("ai", "3"));
-// --human auto: one extra seat that plays random legal moves (a stand-in human, for testing the table).
-const autoHuman = opt("human") === "auto";
-const seats = Number(opt("seats", String(ai + (autoHuman ? 1 : 0))));
+// Test human seats: scripted stand-ins for people (random legal moves), labelled as such everywhere.
+// --human auto = 1 of them. --humans K = K of them. With --stake <NEAR>, each one also enters the NEAR
+// pot: it signs MakeoNearEntry with its own EVM key, naming a fresh implicit NEAR account as payout,
+// and the operator relays it (NEAR_OPERATOR_URL, default http://127.0.0.1:8787). AI seats never enter.
+const humans = Number(opt("humans", opt("human") === "auto" ? "1" : "0"));
+const stakeNear = opt("stake");
+const operatorUrl = opt("operator") ?? process.env.NEAR_OPERATOR_URL ?? "http://127.0.0.1:8787";
+const seats = Number(opt("seats", String(ai + humans)));
 const given = opt("room");
+// --start: the first seat we bring hosts (or is told to) and starts once `seats` have entered.
+const weStart = !given || args.includes("--start");
 const roomId = given ?? (await openFreeMatch(base, projectId, seats));
-console.log(`room ${roomId} — instance ${projectId}:live:${roomId}\nplay: ${base}/play/${projectId}?room=${roomId}`);
+const game = `${projectId}:live:${roomId}`;
+console.log(`room ${roomId} — instance ${game}\nplay: ${base}/play/${projectId}?room=${roomId}`);
 
 const inference = nearAiFromEnv();
 const verify = inference && process.env.NEAR_AI_API_KEY ? createNearAiVerifier({ apiKey: process.env.NEAR_AI_API_KEY, model: inference.model }) : null;
@@ -47,12 +57,28 @@ const log = (line: string) => console.log(line);
 const receipts = new ReceiptStore(resolve(import.meta.dir, "../receipts"));
 const personas = pickPersonas(ai, actor.persona?.length ? actor.persona : undefined);
 const transports: MakeoTransport[] = [];
-// The stand-in human joins first, so in a room we opened it is the host and starts the match when full.
-if (autoHuman) {
-  const t = new MakeoTransport({ base, projectId, roomId, name: "Auto human", log, ...(given ? {} : { startAt: seats }) });
+const testHumans: Array<{ label: string; seat: string; payout: string | null; entered: unknown }> = [];
+const payoutKeys: Array<{ seat: string; accountId: string; secretKeyHex: string }> = [];
+for (let h = 0; h < humans; h++) {
+  const label = `TEST HUMAN SEAT ${h + 1} (scripted)`;
+  const t = new MakeoTransport({ base, projectId, roomId, name: `Test human ${h + 1}`, log, ...(weStart && h === 0 ? { startAt: seats } : {}) });
   transports.push(t);
-  const me = await new HumanSeat(t, "Auto human").join();
-  console.log(`[Auto human] seated ${me.wallet}`);
+  const me = await new HumanSeat(t, `Test human ${h + 1}`).join();
+  console.log(`[${label}] seated ${me.wallet}`);
+  let payout: string | null = null, entered: unknown = null;
+  if (stakeNear) {
+    const account = implicitAccount();
+    payout = account.accountId;
+    payoutKeys.push({ seat: me.wallet, ...account });
+    try {
+      entered = await enterPot({ operator: operatorUrl, signer: me.signer, game, payout, stakeNear });
+      console.log(`[${label}] entered the pot: ${stakeNear} NEAR, payout ${payout}`);
+    } catch (e) {
+      entered = { error: (e as Error).message };
+      console.log(`[${label}] pot entry FAILED: ${(e as Error).message}`);
+    }
+  }
+  testHumans.push({ label, seat: me.wallet, payout, entered });
   let busy = false, last = "";
   const turn = async () => {
     if (busy) return;
@@ -65,12 +91,18 @@ if (autoHuman) {
       last = key;
       const move = legal[Math.floor(Math.random() * legal.length)];
       const ack = await me.play(move);
-      console.log(`[Auto human] ${JSON.stringify(move)} ${ack.accepted ? "accepted" : `refused: ${ack.message}`}`);
+      console.log(`[${label}] ${JSON.stringify(move)} ${ack.accepted ? "accepted" : `refused: ${ack.message}`}`);
       if (!ack.accepted) last = "";
-    } catch (e) { console.log(`[Auto human] ${(e as Error).message}`); } finally { busy = false; }
+    } catch (e) { console.log(`[${label}] ${(e as Error).message}`); } finally { busy = false; }
   };
   t.subscribe(() => void turn());
   setInterval(() => void turn(), 3000);
+}
+if (payoutKeys.length) {
+  // The payout accounts' keys stay on this machine (they can spend what the pot pays); only ids are printed.
+  const dir = resolve(import.meta.dir, "../receipts/private");
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  writeFileSync(join(dir, `payout-keys-${roomId.slice(0, 16)}.json`), JSON.stringify({ game, payoutKeys }, null, 2), { mode: 0o600 });
 }
 const { outcome, file } = await runActors({
   game: gameDir.split("/").pop()!, actor, personas, inference, verify, receipts, log,
@@ -78,12 +110,16 @@ const { outcome, file } = await runActors({
   transport: null as never,
   // Seats join one by one; the first seat of a room we opened hosts it and starts it once everyone is in.
   transportFor: (persona, i) => {
-    const t = new MakeoTransport({ base, projectId, roomId, name: persona.name, log, ...(given || autoHuman || i > 0 ? {} : { startAt: seats }) });
+    const t = new MakeoTransport({ base, projectId, roomId, name: persona.name, log, ...(weStart && humans === 0 && i === 0 ? { startAt: seats } : {}) });
     transports.push(t);
     return t;
   },
 });
 console.log(`\ngame ${outcome}. ${receipts.all().length} receipts${file ? ` → ${file}` : ""}`);
 for (const r of receipts.all()) console.log(`  r${r.round} ${r.seat.slice(0, 10)} ${JSON.stringify(r.move)} ${r.fallback ? `[scripted: ${r.fallback}]` : r.verified ? `[verified ${r.signer}]` : "[unverified]"} ${r.inference_ms ?? "-"}ms`);
+if (testHumans.length) console.log(`test human seats: ${JSON.stringify(testHumans)}`);
+const runFile = resolve(import.meta.dir, `../receipts/run-${roomId.slice(0, 16)}.json`);
+writeFileSync(runFile, JSON.stringify({ game, room: roomId, outcome, agentSeats: [...new Set(receipts.all().map((r) => r.seat))], testHumanSeats: testHumans, receipts: receipts.list() }, null, 2));
+console.log(`run → ${runFile}`);
 transports.forEach((t) => t.close());
 process.exit(0);

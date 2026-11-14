@@ -11,6 +11,8 @@ export interface SeatSigner {
   readonly chainId: number;
   readonly grant: SessionGrant;
   sign(digest: string): Promise<Signature>;
+  /** The seat's EVM wallet over a 32-byte EIP-712 digest: 0x r||s||v (v = 27/28). Used for MakeoNearEntry. */
+  walletSign(digest: Uint8Array): string;
 }
 
 export function createSeat(options: { chainId: number; app?: string; evmKey?: string; ttlMs?: number }): SeatSigner {
@@ -21,15 +23,19 @@ export function createSeat(options: { chainId: number; app?: string; evmKey?: st
   const expires_ms = Date.now() + (options.ttlMs ?? 6 * 3600_000);
   // The wallet signs the EIP-712 digest once: r||s||v with v = 27 + recovery (what Privy/ethers return).
   const digest = sessionGrantDigest(options.chainId, wallet, sessionPublic, expires_ms, options.app);
-  const recovered = secp256k1.sign(digest, evmKey, { prehash: false, format: "recovered" }); // [rec, r, s]
-  const rsv = new Uint8Array(65);
-  rsv.set(recovered.slice(1), 0);
-  rsv[64] = 27 + recovered[0]!;
-  const grant: SessionGrant = { key: sessionPublic, expires_ms, wallet_signature: hex(rsv), ...(options.app ? { app: options.app } : {}) };
+  const walletSign = (d: Uint8Array) => {
+    const recovered = secp256k1.sign(d, evmKey, { prehash: false, format: "recovered" }); // [rec, r, s]
+    const rsv = new Uint8Array(65);
+    rsv.set(recovered.slice(1), 0);
+    rsv[64] = 27 + recovered[0]!;
+    return hex(rsv);
+  };
+  const grant: SessionGrant = { key: sessionPublic, expires_ms, wallet_signature: walletSign(digest), ...(options.app ? { app: options.app } : {}) };
   return {
     wallet,
     chainId: options.chainId,
     grant,
+    walletSign,
     // The session key signs the UTF-8 text of the 0x digest (ECDSA P-256/SHA-256, raw r||s).
     async sign(text: string) {
       const sig = p256.sign(new TextEncoder().encode(text), sessionKey, { lowS: true });
