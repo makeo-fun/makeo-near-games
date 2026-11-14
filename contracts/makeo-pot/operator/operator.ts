@@ -2,6 +2,7 @@
 // submits the keeper-signed result when a hidden game ends. It holds no authority over results: the contract
 // pays only on a step the registered keeper signed, so a dishonest operator can delay a game, never steal it.
 //
+//   bun operator.ts create-pot [near]                    create NEAR_POT_CONTRACT as a sub-account of the operator
 //   bun operator.ts deploy <wasm> [owner]                 deploy makeo-pot to NEAR_POT_CONTRACT and init it
 //   bun operator.ts register-keeper <pubkey> <pcr0>       (owner) trust a keeper key, with its image's PCR0
 //   bun operator.ts add-operator <account>                (owner)
@@ -10,7 +11,7 @@
 //   bun operator.ts demo-entry <game> <payout> <stakeNear>  enter a throwaway EVM seat (for a scripted game)
 //   bun operator.ts serve                                  HTTP: POST /open /enter /settle, GET /game/:id
 //
-// Env: NEAR_NETWORK=testnet, NEAR_POT_CONTRACT, NEAR_OPERATOR_ACCOUNT, NEAR_OPERATOR_KEY (ed25519:…),
+// Env: NEAR_NETWORK=testnet, NEAR_POT_CONTRACT, NEAR_OPERATOR_ACCOUNT, NEAR_OPERATOR_KEY (ed25519:…) or NEAR_OPERATOR_KEY_FILE,
 //      NEAR_RPC_URL (optional), OPERATOR_TOKEN (bearer for /open and /settle), OPERATOR_PORT (8787),
 //      OPERATOR_MAX_STAKE_NEAR (largest stake the operator sponsors per seat, default 0.5).
 import { Account, JsonRpcProvider, nearToYocto, teraToGas, type KeyPairString } from "near-api-js";
@@ -22,10 +23,17 @@ import { recoverKeys, resultOf, stateHash, stepDigest } from "../../../verify/ke
 import { entryDigest, RPC_URL } from "../../../verify/near";
 
 const env = (name: string) => {
-  const v = process.env[name];
+  const v = process.env[name] ?? fromKeyFile(name);
   if (!v) throw new Error(`${name} is not set`);
   return v;
 };
+
+/** NEAR_OPERATOR_KEY from NEAR_OPERATOR_KEY_FILE (a near-cli credentials JSON), so the key never sits in env or argv. */
+function fromKeyFile(name: string): string | undefined {
+  if (name !== "NEAR_OPERATOR_KEY" || !process.env.NEAR_OPERATOR_KEY_FILE) return undefined;
+  const path = process.env.NEAR_OPERATOR_KEY_FILE.replace(/^~/, process.env.HOME ?? "~");
+  return (JSON.parse(require("node:fs").readFileSync(path, "utf8")) as { private_key?: string }).private_key;
+}
 
 export const provider = () => new JsonRpcProvider({ url: RPC_URL });
 const contract = () => env("NEAR_POT_CONTRACT");
@@ -59,6 +67,17 @@ export async function deploy(wasmPath: string, owner = env("NEAR_OPERATOR_ACCOUN
   const deployed = await pot.deployContract(code);
   const init = await pot.callFunctionRaw({ contractId: contract(), methodName: "new", args: { owner }, gas: teraToGas("30") });
   return { deploy: (deployed as { transaction?: { hash?: string } }).transaction?.hash, init: (init as { transaction?: { hash?: string } }).transaction?.hash };
+}
+
+/** Creates the pot's account as a sub-account of the operator, controlled by the operator's key. */
+export async function createPot(nearToTransfer: string) {
+  const pot = contract();
+  const parent = env("NEAR_OPERATOR_ACCOUNT");
+  if (!pot.endsWith(`.${parent}`)) throw new Error(`${pot} is not a sub-account of ${parent}`);
+  const { KeyPair } = await import("near-api-js");
+  const publicKey = KeyPair.fromString(env("NEAR_OPERATOR_KEY") as KeyPairString).getPublicKey().toString();
+  const tx = await operator().createSubAccount({ accountOrPrefix: pot, publicKey, nearToTransfer: nearToYocto(nearToTransfer) });
+  return { tx: (tx as { transaction?: { hash?: string } }).transaction?.hash, account: pot };
 }
 
 export const registerKeeper = (pubkey: string, pcr0: string) => call("register_keeper", { pubkey_secp256k1: pubkey, pcr0 });
@@ -183,6 +202,7 @@ if (import.meta.main) {
   const [cmd, ...a] = process.argv.slice(2);
   const out = (v: unknown) => console.log(JSON.stringify(v, (_, x) => (typeof x === "bigint" ? x.toString() : x), 2));
   switch (cmd) {
+    case "create-pot": out(await createPot(a[0] ?? "3.5")); break;
     case "deploy": out(await deploy(a[0]!, a[1])); break;
     case "register-keeper": out(await registerKeeper(a[0]!, a[1]!)); break;
     case "add-operator": out(await addOperator(a[0]!)); break;
