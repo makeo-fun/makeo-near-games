@@ -2,7 +2,7 @@
 // does in a browser, with local keys instead of Privy (app src/worker/free-matches.ts, rooms-sdk.ts,
 // games-api.ts issueRoomTicket; platform games-sdk contest-play.ts; keeper hidden.ts).
 //
-//   open:  POST /api/games/<p>/free-matches {seats}                    -> {room}; instance "<p>:live:<room>"
+//   open:  POST /api/games/<p>/free-matches {seats}                    -> {room}; instance "<p>:live:<room>:free" (paid.instance)
 //   seat:  POST /api/games/<p>/rooms/<room>/free-entry {wallet, grant, public_key, signature}
 //          signature = session key over freeEntryDigest(room, wallet); grant.app = "create-<p>"
 //   join:  POST /api/games/<p>/rooms/<room>/ticket?scope=live {name}   -> {ticket, playerId} (+ guest cookie)
@@ -75,7 +75,7 @@ export class MakeoTransport implements RoomTransport {
 
   constructor(readonly options: MakeoTransportOptions) {}
 
-  get instance() { return `${this.options.projectId}:live:${this.options.roomId}`; }
+  get instance() { return this.paid?.instance ?? `${this.options.projectId}:live:${this.options.roomId}:free`; }
   private url(path: string) { return `${this.options.base}/api/games/${encodeURIComponent(this.options.projectId)}/rooms/${encodeURIComponent(this.options.roomId)}${path}`; }
   private log(line: string) { this.options.log?.(`[makeo ${this.options.name ?? ""}] ${line}`); }
 

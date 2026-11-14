@@ -48,8 +48,11 @@ const given = opt("room");
 // --start: the first seat we bring hosts (or is told to) and starts once `seats` have entered.
 const weStart = !given || args.includes("--start");
 const roomId = given ?? (await openFreeMatch(base, projectId, seats));
-const game = `${projectId}:live:${roomId}`;
-console.log(`room ${roomId} — instance ${game}\nplay: ${base}/play/${projectId}?room=${roomId}`);
+// The game id is the keeper's instance as the room names it (a free match's ends in ":free"): the
+// keeper signs the result over it, so the NEAR pot and every MakeoNearEntry must name exactly this.
+const game = (await new MakeoTransport({ base, projectId, roomId, name: "probe" }).info().then((i) => i.instance).catch(() => null)) ?? `${projectId}:live:${roomId}:free`;
+console.log(`room ${roomId} — game/instance ${game}\nplay: ${base}/play/${projectId}?room=${roomId}`);
+if (opt("open-only") !== undefined || args.includes("--open-only")) { console.log("opened; nobody seated (--open-only)"); process.exit(0); }
 
 const inference = nearAiFromEnv();
 const verify = inference && process.env.NEAR_AI_API_KEY ? createNearAiVerifier({ apiKey: process.env.NEAR_AI_API_KEY, model: inference.model }) : null;
