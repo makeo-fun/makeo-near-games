@@ -212,9 +212,13 @@ export function checkSignature(input: { record: SignatureRecord; model: string; 
     else recovered = recoverPersonalSign(record.text, record.signature);
   } catch { recovered = null; }
   check(checks, "S3", "signature recovers to the signing address", recovered !== null && recovered === record.signing_address.toLowerCase(), recovered ?? undefined);
-  // [S4] The signer is the attested model enclave (exactly one match) or the attested gateway.
-  const pool = kind === "model" ? attestation.models.filter((m) => m.ok && m.address === recovered && m.algo === record.signing_algo) : kind === "gateway" && attestation.gateway.ok && attestation.gateway.address === recovered ? [attestation.gateway] : [];
-  check(checks, "S4", kind === "model" ? "signer is the attested model enclave" : "signer is the attested NEAR AI gateway", pool.length === 1);
+  // [S4] The signer is an attested model enclave, or the attested gateway. NEAR's docs ask for one
+  // matching report, but they also note that instances of one model share a signing key, and the
+  // report can list several instances. So: at least one verified report must have this exact
+  // (address, algorithm), and no report with that key may have failed its checks.
+  const same = (m: AttestedSigner) => m.address === recovered && m.algo === record.signing_algo;
+  const pool = kind === "model" ? attestation.models.filter(same) : kind === "gateway" && same(attestation.gateway) ? [attestation.gateway] : [];
+  check(checks, "S4", kind === "model" ? "signer is the attested model enclave" : "signer is the attested NEAR AI gateway", pool.length > 0 && pool.every((m) => m.ok), `${pool.filter((m) => m.ok).length} attested report(s) with this key`);
   const ok = checks.every((c) => c.ok);
   return { ok, signer: ok ? kind : null, signing_address: recovered, signature: record.signature, text: record.text, checks };
 }

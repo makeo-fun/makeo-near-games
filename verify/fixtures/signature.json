@@ -1,17 +1,17 @@
 {
-  "model": "Qwen/Qwen3.6-35B-A3B-FP8",
+  "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
   "record": {
-    "text": "Qwen/Qwen3.6-35B-A3B-FP8:da21443911268e4aca21acb9613bacc6314b3e9002c148c85b3f4838989beefa:5ecfae11c8794f4a764b45a4b4b290d9ea3438ee34c5f90fee4dc2ecfedcb27d",
-    "signature": "0x67e5c6246d83099b68528ebecb9d7ecb87dda61e1fe80571bef634ba6d94df5e76bb44c552df9fbe080524b58c6653a814713afd7176a92a4634cc24347567801c",
-    "signing_address": "0xfdbd7952498b333206f360d71d97a1e0961e8ddf",
+    "text": "deepseek-ai/DeepSeek-V4.1-Flash-1017:1a0096798cda008a532f7227a92a8774c311e5ab42933335303caa5749860113:755061b1f467fb0af8bc196c3c695ce8d6be5881f4225e5d200406c39ddd2beb",
+    "signature": "0x4d12335053535b1154d5ffd2b50898e8ccc4b49cce44eed90d1f845b87c33c09199630827c6e9e452d14b3024ecafdbbce7fb20fe24c10cadf00f4fb7c9e3b6f1b",
+    "signing_address": "0xfe0071895500a9755c18044948ab4f4e1a7f337e",
     "signing_algo": "ecdsa",
     "signature_kind": "provider_tee"
   },
-  "request_body": "{\"model\":\"Qwen/Qwen3.6-35B-A3B-FP8\",\"messages\":[{\"role\":\"system\",\"content\":\"Answer with one JSON object: {\\\"move\\\": <number 1-3>, \\\"reasoning\\\": \\\"<short>\\\"}\"},{\"role\":\"user\",\"content\":\"Pick a number.\"}],\"response_format\":{\"type\":\"json_object\"},\"temperature\":0.7,\"max_tokens\":600,\"stream\":false}",
-  "response_body": "{\"id\":\"d7aebbb9625f44c3bc9ad5c2ae322c63\",\"object\":\"chat.completion\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"move\\\": 2, \\\"reasoning\\\": \\\"Random selection within the specified range.\\\"}\",\"reasoning_content\":\"Here's a thinking process:\\n\\n1.  **Analyze User Input:** The user says \\\"Pick a number.\\\"\\n2.  **Identify Constraints:** The system prompt specifies: \\\"Answer with one JSON object: {\\\"move\\\": <number 1-3>, \\\"reasoning\\\": \\\"<short>\\\"}\\\"\\n3.  **Determine Action:** I need to pick a number between 1 and 3, and provide a short reasoning, formatted strictly as JSON.\\n4.  **Select Number:** I'll pick 2.\\n5.  **Draft Reasoning:** \\\"Random selection within the specified range.\\\"\\n6.  **Format Output:** `{\\\"move\\\": 2, \\\"reasoning\\\": \\\"Random selection within the specified range.\\\"}`\\n7.  **Verify Constraints:** Matches exactly the required JSON structure. Contains only the JSON object. Move is between 1-3. Reasoning is short. All good.✅\\n\"},\"finish_reason\":\"stop\",\"logprobs\":null,\"matched_stop\":248046}],\"model\":\"Qwen/Qwen3.6-35B-A3B-FP8\",\"created\":1794683283,\"usage\":{\"prompt_tokens\":43,\"total_tokens\":259,\"completion_tokens\":216,\"prompt_tokens_details\":{\"cached_tokens\":0},\"reasoning_tokens\":196,\"completion_tokens_details\":{\"reasoning_tokens\":196}}}",
+  "request_body": "{\"model\":\"deepseek-ai/DeepSeek-V4.1-Flash-1017\",\"messages\":[{\"role\":\"system\",\"content\":\"Answer with one JSON object: {\\\"move\\\": <number 1-3>, \\\"reasoning\\\": \\\"<short>\\\"}\"},{\"role\":\"user\",\"content\":\"Pick a number.\"}],\"response_format\":{\"type\":\"json_object\"},\"temperature\":0.7,\"max_tokens\":600,\"stream\":false,\"chat_template_kwargs\":{\"enable_thinking\":false}}",
+  "response_body": "{\"id\":\"chatcmpl-e0e9ac72-d059-4e14-ad12-280cadaee0a8\",\"object\":\"chat.completion\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"move\\\": 2, \\\"reasoning\\\": \\\"A balanced middle choice.\\\"}\"},\"finish_reason\":\"stop\",\"logprobs\":null}],\"model\":\"deepseek-ai/DeepSeek-V4.1-Flash-1017\",\"created\":1794683427,\"usage\":{\"prompt_tokens\":33,\"total_tokens\":51,\"completion_tokens\":18,\"prompt_tokens_details\":{\"cached_tokens\":0,\"created_cache_tokens\":0},\"completion_tokens_details\":{\"reasoning_tokens\":0}},\"system_fingerprint\":\"vllm-0.33.0-dp8-ep-630ec158\"}",
   "attestation": {
-    "nonce": "ecf6544ee946f05745de33d8bd705e6325a523694be3d32b22ebd6a2adb3ef04",
-    "at_ms": 1794683283266,
+    "nonce": "8bfd75adf28e0f6208139e859d3df0cff1bc950ad264b08f6308391e946412c1",
+    "at_ms": 1794683427309,
     "gateway": {
       "kind": "gateway",
       "address": "0xb98a789cdc4817275f5155593ba73ef2a957e779",
@@ -56,9 +56,9 @@
     "models": [
       {
         "kind": "model",
-        "address": "0xfdbd7952498b333206f360d71d97a1e0961e8ddf",
+        "address": "0xfe0071895500a9755c18044948ab4f4e1a7f337e",
         "algo": "ecdsa",
-        "model": "Qwen/Qwen3.6-35B-A3B-FP8",
+        "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
         "checks": [
           {
             "id": "A2",
@@ -75,7 +75,7 @@
             "id": "A4",
             "label": "quote binds the signing address and our nonce",
             "ok": true,
-            "detail": "signer 0xfdbd7952498b333206f360d71d97a1e0961e8ddf"
+            "detail": "signer 0xfe0071895500a9755c18044948ab4f4e1a7f337e"
           },
           {
             "id": "A5",
@@ -86,7 +86,59 @@
             "id": "A6",
             "label": "quote measures this app config",
             "ok": true,
-            "detail": "compose sha256 e8416a02d6f7ce47baaa52e3925b934fd30834b04fc9086b363db9b1d12c729d"
+            "detail": "compose sha256 c53e254e8b70aa14b45ba3043730a0736ca2afb1df7fa3db9c61578845e470fe"
+          },
+          {
+            "id": "A7",
+            "label": "event log replays to RTMR3",
+            "ok": true
+          },
+          {
+            "id": "A8a",
+            "label": "GPU evidence carries our nonce",
+            "ok": true
+          },
+          {
+            "id": "A8b",
+            "label": "NVIDIA NRAS: GPUs genuine, confidential mode",
+            "ok": true
+          }
+        ],
+        "ok": true
+      },
+      {
+        "kind": "model",
+        "address": "0xfe0071895500a9755c18044948ab4f4e1a7f337e",
+        "algo": "ecdsa",
+        "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+        "checks": [
+          {
+            "id": "A2",
+            "label": "Intel TDX quote verified",
+            "ok": true,
+            "detail": "TCB UpToDate"
+          },
+          {
+            "id": "A3",
+            "label": "not a debug enclave",
+            "ok": true
+          },
+          {
+            "id": "A4",
+            "label": "quote binds the signing address and our nonce",
+            "ok": true,
+            "detail": "signer 0xfe0071895500a9755c18044948ab4f4e1a7f337e"
+          },
+          {
+            "id": "A5",
+            "label": "echoed nonce is ours",
+            "ok": true
+          },
+          {
+            "id": "A6",
+            "label": "quote measures this app config",
+            "ok": true,
+            "detail": "compose sha256 448683dd83e50727b9c5f6cdc84bd9d93fcf2c888001a85b1ba32f76b3612e3e"
           },
           {
             "id": "A7",
