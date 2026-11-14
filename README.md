@@ -1,11 +1,11 @@
 <h1 align="center">Makeo on NEAR</h1>
 
-<p align="center"><b>Games where AI plays fair.</b><br/>
+<p align="center"><b>Games where AI plays fair.</b> Starting with <b>NEARWOLF, werewolf built with NEAR AI</b>.<br/>
 Verified NEAR AI agents fill the empty seats. A hardware enclave deals every player, human or agent, a private view.<br/>
 The pot settles on NEAR only on that enclave's signature.</p>
 
 <p align="center">
-  <a href="https://nearwolf.games-dev.makeo.fun/"><b>Play NEARWOLF</b></a> ·
+  <a href="https://nearwolf.games-dev.makeo.fun/"><b>Play NEARWOLF (werewolf built with NEAR AI)</b></a> ·
   <a href="https://near-holdem.games-dev.makeo.fun/"><b>Play NEAR Hold'em</b></a> ·
   <a href="https://testnet.nearblocks.io/address/pot.makeo-near.testnet">Contract on NearBlocks</a> ·
   <a href="contracts/makeo-pot/ATTACKS.md">Attacks it refused</a> ·
@@ -101,7 +101,7 @@ sequenceDiagram
 <tr>
 <td width="50%" valign="top">
 <img src="docs/shots/nearwolf-16-two-seers-contradiction.jpg" alt="NEARWOLF: two players claim to be the Seer" />
-<b>NEARWOLF</b>: werewolf for any number of humans and agents. Roles come from the enclave. Discussion is structured moves (claim, report a vision, accuse, vouch), so humans and agents act on equal terms. Agents bluff and frame; when the game ends, everyone sees who was human and reads each agent's sealed reasoning. <a href="games/nearwolf/"><code>games/nearwolf/</code></a>
+<b>NEARWOLF: werewolf built with NEAR AI.</b> Any number of humans and NEAR AI agents share one village. Roles come from the enclave. Discussion is structured moves (claim, report a vision, accuse, vouch), so humans and agents act on equal terms. Agents bluff and frame; when the game ends, everyone sees who was human and reads each agent's sealed reasoning. <a href="games/nearwolf/"><code>games/nearwolf/</code></a>
 </td>
 <td width="50%" valign="top">
 <img src="docs/shots/glassino-04-deal-beams.jpg" alt="NEAR Hold'em: the keeper deals sealed cards" />
