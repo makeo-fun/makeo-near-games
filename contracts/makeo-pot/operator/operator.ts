@@ -88,6 +88,7 @@ export async function redeploy(wasmPath: string) {
 }
 
 export const registerKeeper = (pubkey: string, pcr0: string) => call("register_keeper", { pubkey_secp256k1: pubkey, pcr0 });
+export const attestReceipts = (game: string, root: string, count: number) => call("attest_receipts", { game, root, count });
 export const addOperator = (account: string) => call("add_operator", { account_id: account });
 
 // ---------- games ----------
@@ -233,6 +234,13 @@ if (import.meta.main) {
     case "redeploy": out(await redeploy(a[0]!)); break;
     case "register-keeper": out(await registerKeeper(a[0]!, a[1]!)); break;
     case "add-operator": out(await addOperator(a[0]!)); break;
+    case "attest-receipts": {
+      // attest-receipts <game> <file.receipts.json>: the root is computed here, from the published file.
+      const { receiptsOf, receiptsRoot } = await import("../../../verify/near");
+      const list = receiptsOf(JSON.parse(await Bun.file(a[1]!).text()));
+      out({ root: receiptsRoot(list), count: list.length, ...(await attestReceipts(a[0]!, receiptsRoot(list), list.length)) });
+      break;
+    }
     case "open": out(await openGame({ game: a[0]!, stakeNear: a[1]!, seats: Number(a[2]), minutes: Number(a[3]), rulesDigest: a[4] })); break;
     case "settle": out(await settle(await loadProof(a[0]!))); break;
     case "check": out(await checkProof(await loadProof(a[0]!))); break;

@@ -9,6 +9,8 @@
 // Env: NEAR_NETWORK (testnet), NEAR_POT_CONTRACT, NEAR_RPC_URL (optional).
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { canonicalJson, type Json } from "./canonical";
 import { attestKeeper, recoverKeys, resultOf, stateHash, stepDigest } from "./keeper";
 
 export const NETWORK = process.env.NEAR_NETWORK ?? "testnet";
@@ -58,6 +60,36 @@ export function entryDigest(e: Entry): string {
   return `0x${bytesToHex(keccak_256(cat(Uint8Array.of(0x19, 0x01), domain, struct)))}`;
 }
 
+// ---------- AI receipts root (anchored on chain by attest_receipts) ----------
+
+/**
+ * The Merkle root of a game's published AI receipts, as agent-actors defines it (verify/receipts.ts): leaf =
+ * sha256(canonical JSON of the receipt), receipts sorted by (at_ms, chat_id), node = sha256(left || right), an odd
+ * last node carried up; zero receipts = sha256("").
+ */
+export function receiptsRoot(receipts: Array<{ at_ms?: number; chat_id?: string } & Record<string, unknown>>): string {
+  const sorted = [...receipts].sort((a, b) => (Number(a.at_ms) - Number(b.at_ms)) || String(a.chat_id ?? "").localeCompare(String(b.chat_id ?? "")));
+  let level = sorted.map((r) => sha256(new TextEncoder().encode(canonicalJson(r as Json))));
+  if (!level.length) return `0x${bytesToHex(sha256(new Uint8Array()))}`;
+  while (level.length > 1) {
+    const next: Uint8Array[] = [];
+    for (let i = 0; i < level.length; i += 2) {
+      if (i + 1 === level.length) next.push(level[i]!);
+      else { const n = new Uint8Array(64); n.set(level[i]!); n.set(level[i + 1]!, 32); next.push(sha256(n)); }
+    }
+    level = next;
+  }
+  return `0x${bytesToHex(level[0]!)}`;
+}
+
+/** A receipts file: an array of receipts, or an object holding one under `receipts`. */
+export function receiptsOf(file: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(file)) return file as never;
+  const r = (file as { receipts?: unknown })?.receipts;
+  if (Array.isArray(r)) return r as never;
+  throw new Error("a receipts file is an array of receipts or {receipts: [...]}");
+}
+
 // ---------- NEAR RPC ----------
 
 export async function rpc<T>(method: string, params: unknown): Promise<T> {
@@ -75,7 +107,9 @@ export async function view<T>(contract: string, method: string, args: Record<str
   return JSON.parse(Buffer.from(result.result).toString()) as T;
 }
 
+export type ReceiptsAnchor = { root: string; count: number; attested_at_ms: number; attested_by: string };
 export type Record = {
+  receipts?: ReceiptsAnchor | null;
   game: string; rules_digest: string; count: number; head: string; state_hash: string; step: string; keeper: string;
   winners: string[]; payouts: { seat: string; account: string; amount: string }[]; refunded: boolean; settled_at_ms: number; settled_by: string;
 };
@@ -87,7 +121,9 @@ export async function settleArgs(contract: string, game: string): Promise<{ stat
   if (!res.ok) return null;
   const { txns } = (await res.json()) as { txns?: { transaction_hash: string; predecessor_account_id: string; outcomes?: { status?: boolean } }[] };
   for (const t of txns ?? []) {
-    const tx = await rpc<{ transaction: { actions: { FunctionCall?: { method_name: string; args: string } }[] } }>("tx", { tx_hash: t.transaction_hash, sender_account_id: t.predecessor_account_id, wait_until: "FINAL" });
+    const tx = await rpc<{ status: Record<string, unknown>; transaction: { actions: { FunctionCall?: { method_name: string; args: string } }[] } }>("tx", { tx_hash: t.transaction_hash, sender_account_id: t.predecessor_account_id, wait_until: "FINAL" });
+    // Only the settle the contract accepted: a refused one (an attack, a second settle) is skipped.
+    if ("Failure" in (tx.status ?? {})) continue;
     for (const a of tx.transaction.actions) {
       if (a.FunctionCall?.method_name !== "settle") continue;
       const args = JSON.parse(Buffer.from(a.FunctionCall.args, "base64").toString()) as { game: string; state: string; keeper_sig: string };
@@ -97,7 +133,7 @@ export async function settleArgs(contract: string, game: string): Promise<{ stat
   return null;
 }
 
-export async function verifyGame(contract: string, game: string, opts: { state?: string; keeperUrl?: string } = {}) {
+export async function verifyGame(contract: string, game: string, opts: { state?: string; keeperUrl?: string; receipts?: unknown } = {}) {
   const [g, record, keepers] = await Promise.all([
     view<unknown>(contract, "get_game", { game }), view<Record | null>(contract, "get_record", { game }), view<Keeper[]>(contract, "get_keepers"),
   ]);
@@ -121,7 +157,16 @@ export async function verifyGame(contract: string, game: string, opts: { state?:
     if (live.key !== record.keeper) throw new Error(`the live keeper attests ${live.key}, not ${record.keeper}`);
     attested = live.pcr0;
   }
-  return { settled: true, game: g, record, keeper: registered, state_hash, step, tx: found.tx || undefined, attested_pcr0: attested, result };
+  let receipts: { root: string; count: number } | undefined;
+  if (opts.receipts !== undefined) {
+    const list = receiptsOf(opts.receipts);
+    const root = receiptsRoot(list);
+    if (!record.receipts) throw new Error("this game's AI receipts are not anchored on chain");
+    if (root !== record.receipts.root) throw new Error(`the receipts file hashes to ${root}, the chain anchored ${record.receipts.root}`);
+    if (list.length !== record.receipts.count) throw new Error(`the file has ${list.length} receipts, the chain anchored ${record.receipts.count}`);
+    receipts = { root, count: list.length };
+  }
+  return { settled: true, game: g, record, keeper: registered, state_hash, step, tx: found.tx || undefined, attested_pcr0: attested, result, receipts };
 }
 
 if (import.meta.main) {
@@ -130,10 +175,14 @@ if (import.meta.main) {
   const flag = (name: string) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : undefined; };
   const contract = flag("contract") ?? process.env.NEAR_POT_CONTRACT;
   if (!game || !contract) {
-    console.error("usage: NEAR_POT_CONTRACT=pot.testnet bun verify/near.ts <game> [--state state.json] [--keeper-url URL]");
+    console.error("usage: NEAR_POT_CONTRACT=pot.testnet bun verify/near.ts <game> [--state state.json] [--keeper-url URL] [--receipts file.receipts.json]");
     process.exit(2);
   }
   const statePath = flag("state");
-  const out = await verifyGame(contract, game, { state: statePath ? (await Bun.file(statePath).text()).trim() : undefined, keeperUrl: flag("keeper-url") });
+  const receiptsPath = flag("receipts");
+  const out = await verifyGame(contract, game, {
+    state: statePath ? (await Bun.file(statePath).text()).trim() : undefined, keeperUrl: flag("keeper-url"),
+    receipts: receiptsPath ? JSON.parse(await Bun.file(receiptsPath).text()) : undefined,
+  });
   console.log(JSON.stringify({ ok: true, ...out }, (_, v) => (typeof v === "bigint" ? v.toString() : v), 2));
 }
