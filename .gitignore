@@ -4,3 +4,9 @@ target/
 !.env.example
 dist/
 .makeo/cache/
+
+# render outputs and bulky captures
+video/out/
+video-v2/out/
+video*/audio/*.wav
+games/*/ui/shots/
