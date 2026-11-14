@@ -8,3 +8,4 @@ export { ReceiptStore } from "./receipts";
 export { NearAiClient, nearAiFromEnv, scriptedInference, extractJson, DEFAULT_MODEL, type Inference } from "./nearai";
 export { createSeat, type SeatSigner } from "./seat";
 export { HumanSeat } from "./human";
+export { MakeoTransport, openFreeMatch, freeEntryDigest, viewRequestDigestV2, openView } from "./makeo-transport";

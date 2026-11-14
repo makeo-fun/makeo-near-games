@@ -54,7 +54,7 @@ export class ActorSeat {
     const o = this.options;
     this.info = await o.transport.info();
     this.signer = createSeat({ chainId: this.info.chainId, app: this.info.app, evmKey: o.evmKey });
-    const ack = await o.transport.join(this.signer.wallet, this.signer.grant, o.persona.name);
+    const ack = await o.transport.join(this.signer.wallet, this.signer.grant, o.persona.name, (d) => this.signer.sign(d));
     if (!ack.accepted) throw new Error(`${o.persona.name} could not join: ${ack.message}`);
     this.done = new Promise((r) => (this.resolveDone = r));
     this.stopFn = o.transport.subscribe(() => void this.wake());
@@ -189,10 +189,13 @@ export class ActorSeat {
 }
 
 /** Runs N AI seats in one room until the game ends; publishes receipts at the end. */
-export async function runActors(options: Omit<SeatOptions, "persona" | "receipts"> & { personas: Persona[]; receipts?: ReceiptStore; timeoutMs?: number }) {
+export async function runActors(options: Omit<SeatOptions, "persona" | "receipts"> & { personas: Persona[]; receipts?: ReceiptStore; timeoutMs?: number; /** One transport per seat (live rooms: each seat is its own guest). */ transportFor?: (persona: Persona, index: number) => RoomTransport }) {
   const receipts = options.receipts ?? new ReceiptStore();
   const seats: ActorSeat[] = [];
-  for (const persona of options.personas) seats.push(await new ActorSeat({ ...options, persona, receipts }).start());
+  for (const [i, persona] of options.personas.entries()) {
+    const transport = options.transportFor ? options.transportFor(persona, i) : options.transport;
+    seats.push(await new ActorSeat({ ...options, transport, persona, receipts }).start());
+  }
   const info = await options.transport.info();
   const timeout = options.timeoutMs ? Bun.sleep(options.timeoutMs).then(() => "timeout" as const) : new Promise<never>(() => {});
   const outcome = await Promise.race([Promise.all(seats.map((s) => s.finished)).then(() => "finished" as const), timeout]);

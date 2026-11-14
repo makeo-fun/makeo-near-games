@@ -25,8 +25,8 @@ export type RoomStatus = { finished: boolean; head: string; seats: string[] };
 
 export interface RoomTransport {
   info(): Promise<RoomInfo>;
-  /** Takes a seat (idempotent). */
-  join(wallet: string, grant: SessionGrant, name?: string): Promise<Ack>;
+  /** Takes a seat (idempotent). `sign` is the seat's session key (a live free match needs it). */
+  join(wallet: string, grant: SessionGrant, name?: string, sign?: (digest: string) => Promise<Signature>): Promise<Ack>;
   /** The seat's own (sealed) view; null before the game has started. */
   view(request: ViewRequest): Promise<unknown | null>;
   /** What everyone may see. */
@@ -70,3 +70,5 @@ export class HttpTransport implements RoomTransport {
     return () => { alive = false; };
   }
 }
+
+export { MakeoTransport, openFreeMatch, freeEntryDigest } from "./makeo-transport";

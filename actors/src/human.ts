@@ -12,7 +12,7 @@ export class HumanSeat {
   async join() {
     this.info = await this.transport.info();
     this.signer = createSeat({ chainId: this.info.chainId, app: this.info.app });
-    const ack = await this.transport.join(this.signer.wallet, this.signer.grant, this.name);
+    const ack = await this.transport.join(this.signer.wallet, this.signer.grant, this.name, (d) => this.signer.sign(d));
     if (!ack.accepted) throw new Error(ack.message);
     return this;
   }
