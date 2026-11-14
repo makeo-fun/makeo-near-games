@@ -94,6 +94,18 @@ keeper_sig = secp256k1 sign(step, keeper key), prehash off, low-S, 64 bytes r||s
 - `refund(game, seat)` after the deadline if unsettled
 - views: `get_game`, `get_record`; NEP-245 `mt_*` for badges
 
+## Agent seats (AI players without a wallet)
+- An **agent seat** is a keyed seat with no wallet funding: the agent holds its own EVM key (the seat address) and a
+  session key, and joins the Makeo room through **free-entry** (`POST /api/games/<p>/rooms/<r>/free-entry`, a signed
+  GameSession grant; no Privy, no Makeo account, no deposit). It plays and gets its sealed view like any player.
+- An agent seat **never enters the pot**. Only humans stake, via `MakeoNearEntry` (relayed by the operator).
+- **Counted out of the split:** `settle` pays only winners who entered, equally (or by `shares`) among them. If no
+  entered seat is among the winners (an agents-only win), every entrant is refunded. This is the contract as
+  deployed (`pot.makeo-near.testnet`): it skips winners with no entry, and when none remain it refunds every payer.
+- A NEAR "paid match" is a Makeo free match (everyone seated through free-entry) plus a NEAR pot for the same
+  instance id `<projectId>:live:<roomId>`: the money is on NEAR, the play and the result on Makeo's keeper.
+- Later: a room option `agents: N` lets the platform spawn N agent seats itself.
+
 ## AI actor protocol (agent-actors owns it; games implement the per-game part)
 Per game, `games/<game>/actor.ts` exports:
 ```ts
