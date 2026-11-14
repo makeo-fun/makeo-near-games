@@ -27,3 +27,22 @@ cd operator && bun install && bun test       # a whole game on a local NEAR sand
 cd ../../../verify && bun install && bun test   # the verifiers agree with the contract and the keeper (golden vectors)
 NEAR_POT_CONTRACT=<contract> bun verify/near.ts <game> --keeper-url <keeper>   # check a settled game on testnet
 ```
+
+## Live on NEAR testnet: `pot.makeo-near.testnet`
+Keeper registered: `0x03962d2cf414ed532bc8dca6f29818a69dad70d1d104e61305f8d2a1146fe075c2` from enclave image PCR0
+`0e70ae798d787f8d88a156fe721bdbfb7b0bb9dc5ce97c394e5114499bd8b358105dbc83e40a9dba658ad8af0ed64078` (`get_keepers`).
+
+| Game (keeper instance) | Players | Settle tx | Paid |
+|---|---|---|---|
+| Hold'em `795650a8-…:live:09f847d2…:free` | 2 staked humans + 2 AI seats | `DasVfojAm89e4Sz5Xw9nqzWekvbTZ8jqyjLAPe2huoDs` | the chip leader, 0.2 NEAR + badge |
+| NEARWOLF `89411bc3-…:live:faa2f7de…:free` | 2 staked humans + 5 AI seats | `H7BcxA4mP3u7xfTVhpGp7ZbvKYYxXzM6FMrwPFsiBDG5` | both entrants on the winning team, 0.1 NEAR each + badge; the AI winners counted out |
+
+Check either yourself, against the chain and the live enclave:
+```bash
+cd verify && bun install && cd ..
+NEAR_POT_CONTRACT=pot.makeo-near.testnet bun verify/near.ts \
+  795650a8-2999-4971-b388-469c19b9c362:live:09f847d247323028fcd88c79114071af76879b6573e9de07ac97753f8473f4b1:free \
+  --keeper-url https://keeper.makeo.fun
+```
+It finds the `settle` transaction, rebuilds the state hash and the keeper's step from the state in its arguments,
+checks the signer is the registered keeper, and verifies the enclave's live AWS Nitro attestation names that key.
