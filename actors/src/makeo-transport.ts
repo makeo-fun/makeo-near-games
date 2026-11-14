@@ -174,7 +174,10 @@ export class MakeoTransport implements RoomTransport {
   async status(): Promise<RoomStatus> {
     await this.connect();
     const view = this.paid?.view;
-    return { finished: FINISHED_PHASES.has(String(view?.phase ?? "")), head: this.paid?.head ?? "", seats: view?.entrants ?? [] };
+    // Over when the contest's phase says so, or the game itself does (Hold'em's view.game.finished).
+    const game = (view as { game?: { finished?: unknown } } | null)?.game;
+    const finished = FINISHED_PHASES.has(String(view?.phase ?? "")) || view?.finished === true || game?.finished === true;
+    return { finished, head: this.paid?.head ?? "", seats: view?.entrants ?? [] };
   }
 
   async submit(envelope: Envelope): Promise<Ack> {
